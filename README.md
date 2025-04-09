@@ -89,4 +89,4 @@ Children are increasingly exposed to online threats:
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 
-![image](https://github.com/user-attachments/assets/097230d7-ce8f-4f07-8ed5-d7aae13ada08)
+![image](https://github.com/user-attachments/assets/dd5f957a-6141-4f4f-81ca-e0402949274e)
