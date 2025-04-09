@@ -1,86 +1,92 @@
-# 🛡️✨ AI-Powered Online Safety App for Children & Parents
-# 👶🧠 Purpose-Driven AI for a Safer Digital Childhood
+# 🔱 Aigis 🔱
 
-This project focuses on building an AI-powered web extension and mobile safety application designed to protect underage users during their online activities. Whether they're exploring social media, chatting on roulette-style platforms, watching videos, or playing games, our solution ensures their digital safety and emotional well-being.
+###  Web Extension Protecting children and families from online dangers using AI-powered detection and supervision tools
 
-# 🤖🔍 Multimodal AI at the Core
+![490021096_915984677401212_1827260408521174964_n](https://github.com/user-attachments/assets/5a7203a7-50ec-4e7e-ac07-03d9828b8e5e)
 
-Our intelligent safety system harnesses the power of multimodal AI by analyzing:
 
-    📝 Text
+### 🌐 Live Demo & Resources
 
-    🎙️ Audio
+- 🚀 [Live Website](https://safewebguardian.tech) *(Replace with actual link)*
+- 📝 [Devpost Project](https://devpost.com/software/safeweb-guardian) *(Replace with actual link)*
+- 🎥 [Demo Video](https://youtu.be/safeweb-demo) *(Replace with actual link)*
 
-    🎥 Video
+---
 
-This holistic approach helps identify, predict, and mitigate:
+## ⚠️ The Digital Dangers Facing Children
 
-    🚩 Dangerous individuals (predators, scammers, catfishers)
+Children are increasingly exposed to online threats:
 
-    🚫 Exposure to inappropriate or harmful content (nudity, violence, emotional distress)
+- 👤 **66%** of kids chat daily with strangers online — risking deepfakes and grooming.
+- 💬 **12%** of parents report adults trying to befriend their children online.
+- 🎮 **54%** of kids encounter violent content — some at risk of photosensitive epilepsy.
+- 📹 Deepfakes make fake audio/video harder to detect during cam interactions.
+- 🎮 **Most online games** are not approved by safety regulations, unlike AAA games.
+- 📱 Kids aged 8–12 spend **5.4 hrs/day**, teens **8.2 hrs/day** online — often unsupervised.
 
-# 🌐🎮 Tailored for Modern Internet Usage
 
-Our app is built for the platforms kids love:
+> **Aigis** is our AI-powered browser extension and dashboard to detect threats and protect families in real time.
 
-    📱 Social Media Apps
+---
 
-    💬 Chatroulette-style Sites
+## 🧠 Key Features
 
-    🎮 Online Games
+- 🔍 **AI-Powered Chat Supervision**: Detects predator-like behavior in messages
+- 🧑‍🚀 **Fake Profile Detection**: Deepfake analysis and behavior pattern scanning
+- ⚔️ **Violent Game Flagging**: Analyses visuals and content tags for violence/epileptic risks
+- 🗣️ **Voice/Video Analysis**: Detects fake audio, dangerous or inappropriate language in cam discussions
+- 🛡️ **Parental Dashboard**: Centralized hub for reviewing alerts, reports, and safety stats
 
-    📺 Streaming Platforms
+---
 
-It runs discreetly in the background (desktop & mobile) while providing real-time protection.
+## 🛠️ Technical Stack
 
-# 🧩📊 Key Capabilities by AI Modality
+### 🧩 Extension (Frontend)
+- **Browser**: JavaScript + HTML + Tailwind CSS
+  - Chrome extension popup UI
+  - Secure authentication flow
+- **Dashboard**: React + Shadcn UI + Framer Motion
+  - Intuitive UI for parent review
+  - Real-time threat reports
 
-# 📝 Text Analysis
+### ⚙️ Backend
+- **Core**: Node.js + Express + MongoDB
+  - API routes for log storage and alert dispatch
+  - Session & parental settings management
 
-    🚨 Malicious intent & predator detection
+- **AI Models & Detection**
+  - OpenAI Whisper & Gemini for audio/chat analysis
+  - DeepFace/Deepware + MediaPipe for face detection and spoofing
+  - Custom-trained NLP for threat intent detection
+  - Flash and violence detection via OpenCV + metadata parsing
 
-    💬 Bad language & tone detection
+- **Infrastructure**
+  - Hosted on Render / Vercel / Railway (TBD)
+  - Scalable microservices architecture (future-ready)
 
-    🌍 Multilingual & dialect support
+---
 
-    🤥 Lie and manipulation detection
+![Architecture](/client/public/architecture.png)
 
-    🧠 Sentiment & emotion classification
+---
 
-# 🎙️ Audio Analysis
+## 🤝 Built by
+- 👤 **Samar Souissi** – [LinkedIn](https://www.linkedin.com/in/samar-souissi-321b90308/)
+- 👤 **Med Aziz Maatoug** – [LinkedIn](https://www.linkedin.com/in/aziz-maatoug)
+- 👤 **Linda Sakouhi** – [LinkedIn](https://www.linkedin.com/in/linda-sakouhi-1059b6333/)
+- 👤 **Fedi Abassi** – [LinkedIn](https://www.linkedin.com/in/fedi-abassi/)
+- 👤 **Med Anas Obba** – [LinkedIn](https://www.linkedin.com/in/med-anas-obba-3716b732a/)
+- 👤 **Taher Ayadi** – [LinkedIn](https://www.linkedin.com/in/taher-ayadi-424232254/)
 
-    🎭 Voice tone monitoring
+>  Built with ❤️ as part of our university AI CBL Project to bring safety, ethics, and AI together.
 
-    ⚠️ Intention & threat detection
+---
 
-    🎙️ Synthetic voice (deepfake audio) detection
 
-    ❤️ Emotional state recognition via voice
 
-# 🎥 Video Analysis
+## 📝 License
 
-    🧏‍♂️ Micro-expression detection (facial emotions)
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-    💓 Heart rate estimation (stress tracking)
 
-    🧑‍💻 Deepfake video detection
-
-    🧍‍♂️ Behavioral analysis (aggressive movements, threatening gestures)
-
-    🧠 Child’s emotional response monitoring (fear, anxiety, distress)
-
-    🚫 Content filtering: Nudity, violence, epilepsy-sensitive visuals
-
-# 👨‍👩‍👧 Parental Control Features
-
-    👀 Real-time monitoring of child’s screen
-
-    📩 Instant alerts on potential danger
-
-    🛑 Emergency kill switch to cut harmful content
-
-    📊 Dashboard for reports and behavior insights
-
-# 🚀 Empowering Families with Responsible AI
-
-By combining cutting-edge AI models, privacy-first monitoring, and parental involvement, this project sets a new standard for online safety. Our mission is to ensure that every child can explore the digital world securely, while parents remain empowered and informed.
+![image](https://github.com/user-attachments/assets/097230d7-ce8f-4f07-8ed5-d7aae13ada08)
