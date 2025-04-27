@@ -7,6 +7,10 @@ from PIL import Image
 import torchvision.transforms as transforms
 import os
 from ultralytics.nn.tasks import DetectionModel
+import base64
+import io
+from django.views.decorators.csrf import csrf_exempt
+import json
 
 # Load the model
 model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Aigis', 'Models', 'manedri ken behi wale.pt')
@@ -22,25 +26,40 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
+@csrf_exempt
 def detect_violence(request):
-    if request.method == 'POST' and request.FILES.get('image'):
-        image = request.FILES['image']
-        img = Image.open(image)
-        img_tensor = transform(img).unsqueeze(0)
-        
-        with torch.no_grad():
-            output = model(img_tensor)
-            prediction = torch.sigmoid(output).item()
-            
-        is_violent = prediction > 0.5
-        confidence = prediction if is_violent else 1 - prediction
-        
-        return JsonResponse({
-            'is_violent': is_violent,
-            'confidence': confidence
-        })
-    
-    return render(request, 'violence_app/detect.html')
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            image_data = data.get('image')
+        except Exception:
+            image_data = None
+        if image_data:
+            try:
+                # Handle base64 image data
+                if ',' in image_data:
+                    image_data = image_data.split(',')[1]
+                image_bytes = base64.b64decode(image_data)
+                img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+                img = img.resize((224, 224), Image.BICUBIC)
+                img_tensor = transform(img).unsqueeze(0)
+                if next(model.parameters()).dtype == torch.half:
+                    img_tensor = img_tensor.half()
+                with torch.no_grad():
+                    output = model(img_tensor)
+                    if isinstance(output, tuple):
+                        output = output[0]
+                    # Post-process: consider frame violent if any value > 0.5
+                    violence_threshold = 0.5
+                    max_confidence = float(torch.sigmoid(output).max().item())
+                    is_violent = max_confidence > violence_threshold
+                    return JsonResponse({
+                        'is_violent': is_violent,
+                        'confidence': max_confidence
+                    })
+            except Exception as e:
+                return JsonResponse({'error': f'Image decode error: {str(e)}'}, status=400)
+    return JsonResponse({'error': 'Invalid request'}, status=400)
 
 def analyze_video(request):
     if request.method == 'POST' and request.FILES.get('video'):
@@ -80,6 +99,8 @@ def analyze_video_frames(video_path, sample_rate=10):
             
             with torch.no_grad():
                 output = model(img_tensor)
+                if isinstance(output, tuple):
+                    output = output[0]
                 prediction = torch.sigmoid(output).item()
                 
             if prediction > 0.5:
