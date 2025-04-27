@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Brainrot & Nudity Detector",
+  "version": "1.0",
+  "description": "Detects brainrot videos and nudity in images on any site.",
+  "permissions": ["scripting", "activeTab"],
+  "host_permissions": ["http://127.0.0.1:8000/"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content_script.js", "nudity_content_script.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
