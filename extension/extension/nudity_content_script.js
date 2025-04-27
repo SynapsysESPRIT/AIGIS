@@ -68,7 +68,7 @@ function overlayCORSBadge(img) {
 function sendNudityToAPI(imageData, img) {
     if (!imageData) return;
     console.log("\uD83D\uDCE4 Sending image to Django API...");
-    fetch("http://127.0.0.1:8000/classify_nudity/", {
+    fetch("http://127.0.0.1:8000/nudity/classify_nudity/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: imageData }),

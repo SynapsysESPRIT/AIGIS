@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'brainrot_app',
     'nudity_app',
+    'violence_app',
     'corsheaders',
 ]
 

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>AIGIS - Content Detection</title>
+    <style>
+        body {
+            width: 320px;
+            padding: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .logo {
+            font-size: 24px;
+            margin-right: 8px;
+        }
+
+        .title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .status {
+            margin-bottom: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            background: #f5f5f5;
+        }
+
+        .status.active {
+            background: #e6f4ea;
+            color: #1e7e34;
+        }
+
+        .detection-section {
+            margin-bottom: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+        }
+
+        .section-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1a1a1a;
+        }
+
+        .result {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 4px;
+            background: #f8f9fa;
+        }
+
+        .result-icon {
+            margin-right: 8px;
+            font-size: 16px;
+        }
+
+        .result.safe {
+            background: #e6f4ea;
+            color: #1e7e34;
+        }
+
+        .result.warning {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .result.danger {
+            background: #fde7e7;
+            color: #d32f2f;
+        }
+
+        .controls {
+            margin-top: 16px;
+        }
+
+        .toggle {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .toggle input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        button {
+            width: 100%;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            background: #1a73e8;
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: #1557b0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">👁️</div>
+        <div class="title">AIGIS Protection</div>
+    </div>
+
+    <div class="status active">
+        Extension is active and protecting you
+    </div>
+
+    <div class="detection-section">
+        <div class="section-title">🎥 Violence Detection</div>
+        <div id="violence-results">
+            <div class="result safe">
+                <span class="result-icon">✅</span>
+                <span>No violence detected</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="detection-section">
+        <div class="section-title">🔍 Nudity Detection</div>
+        <div id="nudity-results">
+            <div class="result safe">
+                <span class="result-icon">✅</span>
+                <span>No nudity detected</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="toggle">
+            <input type="checkbox" id="violence-toggle" checked>
+            <label for="violence-toggle">Enable violence detection</label>
+        </div>
+        <div class="toggle">
+            <input type="checkbox" id="nudity-toggle" checked>
+            <label for="nudity-toggle">Enable nudity detection</label>
+        </div>
+        <button id="scan-page">Scan Current Page</button>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

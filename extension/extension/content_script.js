@@ -16,7 +16,7 @@ function captureFrame(video) {
 
 function sendVideoToAPI(frame) {
     console.log("📤 Sending frame to Django API...");
-    fetch("http://127.0.0.1:8000/classify_video/", {
+    fetch("http://127.0.0.1:8000/brainrot/classify_video/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: frame }),
