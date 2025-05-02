@@ -14,9 +14,8 @@ import json
 
 # Load the model
 model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Aigis', 'Models', 'manedri ken behi wale.pt')
-with torch.serialization.safe_globals([DetectionModel]):
-    checkpoint = torch.load(model_path, weights_only=False)
-    model = checkpoint['model']  # The model is already a DetectionModel instance
+checkpoint = torch.load(model_path, weights_only=False)
+model = checkpoint['model']  # The model is already a DetectionModel instance
 model.eval()
 
 # Define image transformations
