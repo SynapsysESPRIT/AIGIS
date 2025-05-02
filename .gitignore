@@ -38,4 +38,7 @@ Thumbs.db
 
 # Project specific
 *.log
-*.sqlite3 
+*.sqlite3
+
+# Models
+extension/Aigis/models/ 

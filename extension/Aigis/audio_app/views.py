@@ -32,7 +32,7 @@ class AudioRNN(torch.nn.Module):
         return x
 
 # Load the model
-MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Aigis', 'Models', 'audio_rnn_model1.pth')
+MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models', 'audio_rnn_model1.pth')
 model = AudioRNN()
 model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device('cpu')))
 model.eval()

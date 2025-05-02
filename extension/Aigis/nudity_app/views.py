@@ -10,7 +10,7 @@ import os
 
 # Load your trained nudity detection model (only once)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_PATH = os.path.join(BASE_DIR, 'Aigis', 'Models', 'nudity.onnx')
+MODEL_PATH = os.path.join(BASE_DIR, 'models', 'nudity.onnx')
 
 # Initialize ONNX Runtime session
 session = onnxruntime.InferenceSession(MODEL_PATH)

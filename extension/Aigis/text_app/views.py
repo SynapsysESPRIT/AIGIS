@@ -58,14 +58,14 @@ def load_model_and_tokenizer():
         logger.info(f"Aigis directory: {aigis_dir}")
         
         # Construct the model path - using the correct path from your workspace
-        model_path = os.path.join(aigis_dir, 'Aigis', 'Models', 'modele_robertaya.pth')
+        model_path = os.path.join(aigis_dir, 'models', 'modele_robertaya.pth')
         logger.info(f"Looking for model at: {model_path}")
         
         # Check if the model file exists
         if not os.path.exists(model_path):
             logger.error(f"Model file not found at: {model_path}")
             # Try alternative path
-            alt_model_path = os.path.join(aigis_dir, 'Models', 'modele_robertaya.pth')
+            alt_model_path = os.path.join(aigis_dir, 'models', 'modele_robertaya.pth')
             logger.info(f"Trying alternative path: {alt_model_path}")
             if os.path.exists(alt_model_path):
                 model_path = alt_model_path

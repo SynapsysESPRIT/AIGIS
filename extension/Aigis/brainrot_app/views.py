@@ -11,7 +11,7 @@ import os
 from tensorflow.keras.models import load_model
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_PATH = os.path.join(BASE_DIR, 'Aigis', 'Models', 'brainrot_modelMobilenet.h5')
+MODEL_PATH = os.path.join(BASE_DIR, 'models', 'brainrot_modelMobilenet.h5')
 model = load_model(MODEL_PATH)
 
 

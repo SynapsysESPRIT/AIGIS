@@ -13,7 +13,7 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 
 # Load the model
-model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Aigis', 'Models', 'manedri ken behi wale.pt')
+model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models', 'manedri ken behi wale.pt')
 checkpoint = torch.load(model_path, weights_only=False)
 model = checkpoint['model']  # The model is already a DetectionModel instance
 model.eval()
