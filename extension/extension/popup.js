@@ -286,26 +286,33 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Handle button click
-    toggleButton.addEventListener('click', function () {
-        if (!isCapturing) {
-            // Start capture
-            chrome.runtime.sendMessage({ action: "startCapture" }, function (response) {
-                if (response.success) {
-                    isCapturing = true;
-                    updateUI();
-                } else {
-                    statusDiv.textContent = 'Failed to start capture: ' + (response.error || 'Unknown error');
-                    statusDiv.className = 'status inactive';
-                }
-            });
-        } else {
-            // Stop capture
-            chrome.runtime.sendMessage({ action: "stopCapture" }, function (response) {
+    // Handle button click
+toggleButton.addEventListener('click', function () {
+    if (!isCapturing) {
+        // Start capture
+        chrome.runtime.sendMessage({ action: "startCapture" }, function (response) {
+            if (response.success) {
+                isCapturing = true;
+                updateUI();
+            } else {
+                statusDiv.textContent = 'Failed to start capture: ' + (response.error || 'Unknown error');
+                statusDiv.className = 'status inactive';
+            }
+        });
+    } else {
+        // Stop capture
+        chrome.runtime.sendMessage({ action: "stopCapture" }, function (response) {
+            if (response.success) {
                 isCapturing = false;
                 updateUI();
-            });
-        }
-    });
+            } else {
+                statusDiv.textContent = 'Failed to stop capture: ' + (response.error || 'Unknown error');
+                statusDiv.className = 'status inactive';
+            }
+        });
+    }
+});
+
 
     function updateUI() {
         toggleButton.textContent = isCapturing ? 'Stop Capture' : 'Start Capture';
@@ -336,3 +343,4 @@ function takeScreenshot() {
         });
     });
 }
+

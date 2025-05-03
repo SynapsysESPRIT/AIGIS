@@ -14,9 +14,10 @@ violenceStyle.textContent = `
 document.head.appendChild(violenceStyle);
 
 // Configuration
-const VIOLENCE_FRAME_SAMPLE_RATE = 1; // Analyze every frame
-const VIOLENCE_THRESHOLD = 0.5; // Confidence threshold for violence detection
+const VIOLENCE_FRAME_SAMPLE_RATE = 5; // Analyze every 5th frame instead of every frame
+const VIOLENCE_THRESHOLD = 0.5;
 let isViolenceDetectionEnabled = true;
+let currentVideoId = null;
 
 // Function to capture a frame from video
 function captureViolenceFrame(video) {
@@ -36,6 +37,13 @@ function captureViolenceFrame(video) {
 // Function to send frame to violence detection API
 function sendFrameToViolenceAPI(frame, video) {
     if (!isViolenceDetectionEnabled) return;
+
+    // Check if this is a new video
+    const videoId = video.src || video.currentSrc;
+    if (videoId !== currentVideoId) {
+        currentVideoId = videoId;
+        console.log("🎥 New video detected, starting analysis...");
+    }
 
     fetch("http://127.0.0.1:8000/violence/detect/", {
         method: "POST",
@@ -105,6 +113,11 @@ function analyzeViolenceVideoFrames(video) {
 
             // Start frame analysis
             requestAnimationFrame(analyzeCurrentViolenceFrame);
+        });
+
+        // Handle video end
+        video.addEventListener("ended", () => {
+            console.log("⏹️ Video ended, stopping analysis");
         });
     }
 }

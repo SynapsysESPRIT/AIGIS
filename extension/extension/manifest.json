@@ -1,15 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "AIGIS Audio Analysis",
+  "name": "AIGIS Violence Detection",
   "version": "1.0",
-  "description": "Analyzes audio during video calls",
+  "description": "Analyzes video content for violence during calls",
   "permissions": [
     "tabs",
     "scripting",
     "activeTab",
-    "storage",
-    "tabCapture",
-    "audioCapture"
+    "storage"
   ],
   "host_permissions": [
     "*://*.facebook.com/*",
@@ -27,10 +25,7 @@
         "*://meet.google.com/*"
       ],
       "js": [
-        "content_scripts/audio_extraction_script.js",
-        "content_scripts/nudity_content_script.js",
-        "content_scripts/violence_content_script.js",
-        "content_scripts/content_script.js"
+        "content_scripts/violence_content_script.js"
       ],
       "all_frames": true
     }
@@ -38,10 +33,7 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "content_scripts/audio_extraction_script.js",
-        "content_scripts/nudity_content_script.js",
-        "content_scripts/violence_content_script.js",
-        "content_scripts/content_script.js"
+        "content_scripts/violence_content_script.js"
       ],
       "matches": [
         "*://*.facebook.com/*",
