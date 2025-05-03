@@ -6,6 +6,13 @@ from transformers import CLIPProcessor, CLIPModel
 import os
 import time
 from datetime import datetime
+from huggingface_hub import login
+
+# Login to Hugging Face using environment variable
+hf_token = os.getenv("HUGGINGFACE_TOKEN")
+if hf_token is None:
+    raise ValueError("Hugging Face token not found. Set the HUGGINGFACE_TOKEN environment variable.")
+login(token=hf_token)
 
 class VideoViolenceAnalyzer:
     def __init__(self, sample_rate=30, threshold=0.5):

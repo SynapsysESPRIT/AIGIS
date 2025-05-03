@@ -12,9 +12,6 @@ from PIL import Image  # Ensure this import is present
 import cv2
 from .video_analyzer import VideoViolenceAnalyzer
 
-# Load the Keras model
-model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models', 'resnet_bilstm_violence_final.keras')
-model = load_model(model_path)
 
 # Initialize the analyzer
 analyzer = VideoViolenceAnalyzer()

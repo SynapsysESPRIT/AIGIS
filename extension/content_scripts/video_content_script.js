@@ -14,10 +14,13 @@ violenceStyle.textContent = `
 document.head.appendChild(violenceStyle);
 
 // Configuration
-const VIOLENCE_FRAME_SAMPLE_RATE = 5; // Analyze every 5th frame instead of every frame
+const VIOLENCE_FRAME_SAMPLE_RATE = 5;
 const VIOLENCE_THRESHOLD = 0.5;
 let isViolenceDetectionEnabled = true;
 let currentVideoId = null;
+
+// API URLs
+const VIOLENCE_API_URL = "http://127.0.0.1:8000/violence/detect/";
 
 // Function to capture a frame from video
 function captureViolenceFrame(video) {
@@ -45,7 +48,7 @@ function sendFrameToViolenceAPI(frame, video) {
         console.log("🎥 New video detected, starting analysis...");
     }
 
-    fetch("http://127.0.0.1:8000/violence/detect/", {
+    fetch(VIOLENCE_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: frame }),
@@ -68,6 +71,9 @@ function sendFrameToViolenceAPI(frame, video) {
                 }
                 overlayViolenceResultBadge(video, "Violent", "red");
             } else {
+                if (video && video.classList.contains("aigis-violence-blurred")) {
+                    video.classList.remove("aigis-violence-blurred");
+                }
                 overlayViolenceResultBadge(video, "Safe", "green");
             }
         })
@@ -91,7 +97,7 @@ function analyzeViolenceVideoFrames(video) {
 
             // Function to analyze current frame
             function analyzeCurrentViolenceFrame() {
-                if (video.paused || video.ended) return;
+                if (video.paused || video.ended) return; // Skip analysis if video is paused or ended
 
                 try {
                     canvas.width = video.videoWidth;
@@ -147,7 +153,7 @@ function overlayViolenceResultBadge(video, text, color) {
     parent.appendChild(badge);
 }
 
-// Function to scan for videos
+// Update scan function to include only violence detection
 function scanViolenceVideos() {
     const videos = document.querySelectorAll("video");
     videos.forEach(video => {
@@ -179,4 +185,4 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } else if (request.action === "scan") {
         scanViolenceVideos();
     }
-}); 
+});

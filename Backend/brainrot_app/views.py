@@ -12,10 +12,13 @@ from tensorflow.keras.models import load_model
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_PATH = os.path.join(BASE_DIR, 'models', 'brainrot_modelMobilenet.h5')
-model = load_model(MODEL_PATH)
 
-
-
+try:
+    model = load_model(MODEL_PATH, compile=False)
+    print("✅ Brainrot model loaded successfully (compile=False).")
+except Exception as e:
+    print(f"❌ Error loading brainrot model: {e}")
+    model = None # Keep model as None if loading fails
 
 # Your feature extractor
 from tensorflow.keras.applications import MobileNetV2
@@ -36,6 +39,10 @@ def preprocess_frame(frame_data):
 @api_view(['POST'])
 def classify_video(request):
     frame_data = request.data.get('image')
+
+    if model is None:
+        return Response({"error": "Brainrot model not loaded. Please check logs for details."}, status=500)
+
     img = preprocess_frame(frame_data)
 
     features = feature_model.predict(img)
