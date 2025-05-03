@@ -1,0 +1,18 @@
+# Django and REST Framework
+Django==4.2.0
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+
+# Machine Learning and Image Processing
+onnxruntime==1.21.1
+numpy>=1.26.0,<2.2.0
+Pillow==10.2.0
+torch
+torchvision
+torchaudio
+opencv-python
+ultralytics
+dill
+
+# Development Tools
+python-dotenv==1.0.0 

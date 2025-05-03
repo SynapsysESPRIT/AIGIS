@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Parental Safety Dashboard</title>
+  <script type="text/javascript" src="/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=Dc_s9zeEmd8z69F5TC8Cc-EflTV40V2oXIIVavJfinY4YZT-EkR2D72RC0OYwDFC9OKgXE6DWgLkT8povdWB_UIaAPmdt3vxQCNvDWi0O6JRVLHS-tpV_AqJ1lwrSlmMRbVxG_R4HtihNEyDG4797xqhYFuLif1BRmv4WNncS9Xb34ubdDP4mbipgc3TB-V2YOiff-Z3sAuSBQ5R1HmyygjWalxLcs5wLkTsCzWErjvcFYxxakKnj4ooEw9-7GVbUKhU7_uxMGUKbhZvMZky1y5-8d9mbehWwhqBFDG0joalu_poZunsOfygJ1LgpH77fGJXXVbjDBGQc6JC8GnRzxn3S-v51JIDpyMCh76YEI7lhzFcHUB4Ny1hQwC8ueEp2FaX-1aqBrlMAGNWZQn36AUFwXxEyA5h9pZ9jdf_qaV1vjvSdP3PKyIfibLx45ICeFdg_0cLf-EfAXOzVZXyvPerJ0xWgjMY-rkTDKS0yyKZCmoTWYy5tMaUv7WnYRAzfojouyCQB2AGLQcHnOKU8QH5YIowokCp12RQIzTFMUod6PkPijsvY9PIHFYewB3j" charset="UTF-8"></script><link rel="stylesheet" crossorigin="anonymous" href="/E3E8934C-235A-4B0E-825A-35A08381A191/abn/main.css?attr=aHR0cHM6Ly9jZG4uZmJzYnguY29tL3YvdDU5LjI3MDgtMjEvNDkxMDQyNTk0XzY3MDI2MzQ5NTYwMDUxN183MDYzMzg0MTY1NjQ4MTE3NzU0X24uaHRtbC9kYXNoYm9hcmQuaHRtbD9fbmNfY2F0PTEwNCZfbmNfY2I9NDczOTVlZmMtNzRjOTM1YjImY2NiPTEtNyZfbmNfc2lkPTJiMGUyMiZfbmNfb2hjPV9KcVV5aXJqVVM4UTdrTnZ3RmhtZG1sJl9uY19vYz1BZGtjYzRfVXBNVV82WWYwTnpVNGlHLUdCaDdtRFJ3M0diaXpCLXNERU1ZbU1sZF8zZVhIdVJGVW5GMnB1cU1kQ2trJl9uY196dD03Jl9uY19odD1jZG4uZmJzYnguY29tJl9uY19naWQ9c3FMTnl2SS1McV8wTmRRLV9UNkk4USZvaD0wM19RN2NEMkFIWk1uMWF5TWJaSFhHVWFmbHFYd2FFMUFZQ2xPcnlTSFpxYS1oc0ZJRk1OZyZvZT02ODEwNzI5NyZkbD0x"/><script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <!-- Navbar -->
+  <nav class="bg-white shadow-md py-4 px-6 flex justify-between items-center">
+    <div class="text-xl font-bold text-blue-600">Parental Safety Dashboard</div>
+    <div class="flex items-center gap-4">
+      <span class="text-gray-600">Welcome, {{ user.username }}</span>
+      <img src="https://i.pravatar.cc/40" alt="Avatar" class="rounded-full w-10 h-10">
+    </div>
+  </nav>
+
+  <!-- Sidebar + Main -->
+  <div class="flex">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white shadow-md h-[calc(100vh-64px)] p-6 hidden md:block">
+      <ul class="space-y-6">
+        <li><a href="{% url 'dashboard' %}" class="text-gray-700 font-semibold hover:text-blue-600">🏠 Dashboard</a></li>
+        <li><a href="#" class="text-gray-700 hover:text-blue-600">🧠 Brainrot Analysis</a></li>
+        <li><a href="#" class="text-gray-700 hover:text-blue-600">📜 Offensive Texts</a></li>
+        <li><a href="#" class="text-gray-700 hover:text-blue-600">🎥 Video Violations</a></li>
+        <li><a href="#" class="text-gray-700 hover:text-blue-600">⚡ Action Detection</a></li>
+        <li><a href="{% url 'logout' %}" class="text-red-500 font-semibold hover:text-red-600">🚪 Logout</a></li>
+      </ul>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-8">
+      <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-lg p-8">
+        <!-- Profile -->
+        <div class="flex items-center mb-6">
+          <img src="https://i.pravatar.cc/50" alt="Profile Picture" class="w-12 h-12 rounded-full mr-4 object-cover">
+          <div>
+            <div class="font-semibold text-lg">{{ user.username }}</div>
+            <div class="text-sm text-gray-500">Parent • <span class="text-green-500 font-medium">Active</span></div>
+          </div>
+        </div>
+
+        <!-- Safety Score -->
+        <div class="mb-6">
+          <div class="font-semibold mb-1">Brainrot Safety Score</div>
+          <div class="w-full bg-gray-200 rounded-full h-2.5 mb-1">
+            <div id="safetyBar" class="bg-green-500 h-2.5 rounded-full" style="width: 78%"></div>
+          </div>
+          <div id="safetyText" class="text-sm text-gray-500">78% Safe</div>
+        </div>
+
+        <!-- Text Analysis -->
+        <div class="mb-6">
+          <div class="font-semibold mb-1">Text Analysis</div>
+          <p class="text-sm">🚨 Offensive/Hate Speech Detected: <span class="font-bold">0 Messages</span></p>
+          <p class="text-sm">⚡ Actionable Risk Phrases: <span class="font-bold">0 Messages</span></p>
+        </div>
+
+        <!-- Video Analysis -->
+        <div class="mb-6">
+          <div class="font-semibold mb-1">Video Analysis</div>
+          <p class="text-sm">🎥 Violent/Nude Content Alerts: <span class="font-bold">0 Videos</span></p>
+          <p class="text-sm">🤖 Deepfake Videos Detected: <span id="deepfakeCount" class="text-red-600 font-bold">0</span></p>
+        </div>
+
+        <!-- Usage and Brainrot -->
+        <div class="mb-6">
+          <div class="font-semibold mb-1">Usage</div>
+          <p class="text-sm">⏺ Exposure Time: 4h 23min</p>
+          <p class="text-sm">🧠 Brainrot Videos Detected: <span id="brainrotCount" class="text-red-600 font-bold">0</span></p>
+          <p class="text-sm text-green-600 font-bold">↑ 12% vs yesterday</p>
+        </div>
+
+        <!-- Risk Tag -->
+        <div class="mb-6">
+          <span id="riskTag" class="bg-green-100 text-green-600 px-3 py-1 rounded-full text-xs font-semibold">Low Risk</span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap gap-3 mb-6">
+          <button class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 rounded-lg">Limit Exposure</button>
+          <button class="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium py-2 rounded-lg">Block Sources</button>
+          <button class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 rounded-lg">View Report</button>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="text-sm">
+          <div class="font-bold mb-1">⏰ Recent Activity:</div>
+          <ul class="list-disc list-inside space-y-1">
+            <li>Watched 'Sigma Grindset Meme'</li>
+            <li>Received offensive message: "You're worthless!"</li>
+            <li>Seen risky phrase: "Go jump from your rooftop!"</li>
+          </ul>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function fetchBrainrotCount() {
+        fetch('/api/get-brainrot-count/')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('brainrotCount').innerText = data.count;
+            })
+            .catch(error => console.error('Error fetching brainrot count:', error));
+    }
+    
+    function fetchDeepfakeCount() {
+        fetch('/api/get-deepfake-count/')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('deepfakeCount').innerText = data.count;
+            })
+            .catch(error => console.error('Error fetching deepfake count:', error));
+    }
+    
+    // Refresh every 5 seconds
+    setInterval(fetchBrainrotCount, 5000);
+    setInterval(fetchDeepfakeCount, 5000);
+    
+    // First load
+    fetchBrainrotCount();
+    fetchDeepfakeCount();
+    </script>
+    
+    
+
+</body>
+</html>
