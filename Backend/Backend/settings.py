@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'violence_app',
     'text_app',
     'audio_app',
+    'deepfake_app',
     'corsheaders',
 ]
 

@@ -8,4 +8,5 @@ urlpatterns = [
     path('brainrot/', include('brainrot_app.urls')),
     path('text-classification/', include('text_app.urls')),
     path('audio_app/', include('audio_app.urls')),
+    path('deepfake/', include('deepfake_app.urls')),
 ]
