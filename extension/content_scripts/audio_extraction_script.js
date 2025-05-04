@@ -255,7 +255,8 @@
         formData.append('audio', audioBlob, 'audio.wav');
 
         try {
-            const response = await fetch('http://127.0.0.1:8000/audio_app/infer/', {
+            const apiUrl = "http://127.0.0.1:8000/audio/infer_audio/";
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 body: formData
             });

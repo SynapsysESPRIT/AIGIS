@@ -220,6 +220,62 @@
             background-color: #f2dede;
             color: #a94442;
         }
+
+        .brainrot-stats {
+            margin-top: 12px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-size: 0.9em;
+        }
+
+        .stat-label {
+            color: #666;
+        }
+
+        .stat-value {
+            font-weight: 500;
+        }
+
+        #brainrot-status.safe {
+            color: #1e7e34;
+        }
+
+        #brainrot-status.warning {
+            color: #e65100;
+        }
+
+        #brainrot-status.danger {
+            color: #d32f2f;
+        }
+
+        #server-status.connected {
+            color: #1e7e34;
+        }
+
+        #server-status.disconnected {
+            color: #666;
+        }
+
+        #server-status.error {
+            color: #d32f2f;
+        }
+
+        #brainrot-results .result.warning {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        #brainrot-results .result.danger {
+            background: #fde7e7;
+            color: #d32f2f;
+        }
     </style>
 </head>
 <body>
@@ -243,11 +299,66 @@
     </div>
 
     <div class="detection-section">
-        <div class="section-title">🎥 Violence Detection</div>
-        <div id="violence-results">
-            <div class="result safe">
-                <span class="result-icon">✅</span>
-                <span>No violence detected</span>
+        <div class="section-title">🎥 Video Analysis</div>
+        <div id="video-results">
+            <div class="video-analysis-group">
+                <div class="sub-section-title">🧠 Brainrot Detection</div>
+                <div id="brainrot-results">
+                    <div class="result safe">
+                        <span class="result-icon">✅</span>
+                        <span>No brainrot content detected</span>
+                    </div>
+                </div>
+                <div class="brainrot-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Last Check:</span>
+                        <span class="stat-value" id="last-check-time">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Confidence:</span>
+                        <span class="stat-value" id="brainrot-confidence">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="video-analysis-group">
+                <div class="sub-section-title">🔫 Violence Detection</div>
+                <div id="violence-results">
+                    <div class="result safe">
+                        <span class="result-icon">✅</span>
+                        <span>No violence detected</span>
+                    </div>
+                </div>
+                <div class="violence-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Last Check:</span>
+                        <span class="stat-value" id="violence-last-check">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Confidence:</span>
+                        <span class="stat-value" id="violence-confidence">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="video-analysis-group">
+                <div class="sub-section-title">🤖 Deepfake Detection</div>
+                <div id="deepfake-results">
+                    <div class="result safe">
+                        <span class="result-icon">✅</span>
+                        <span>No deepfake detected</span>
+                    </div>
+                </div>
+                <div class="deepfake-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Last Check:</span>
+                        <span class="stat-value" id="deepfake-last-check">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Confidence:</span>
+                        <span class="stat-value" id="deepfake-confidence">-</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

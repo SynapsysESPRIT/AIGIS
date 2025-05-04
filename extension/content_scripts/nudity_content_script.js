@@ -15,6 +15,15 @@ document.head.appendChild(style);
 
 let warnedImageNotLoaded = false;
 
+// Global rate limiting
+let lastNudityRequestTime = 0;
+let nudityRequestInFlight = false;
+const NUDITY_REQUEST_COOLDOWN = 20000; // 20 seconds
+
+function isTabActiveAndVisible() {
+    return !document.hidden && document.visibilityState === 'visible';
+}
+
 function processImage(img) {
     try {
         if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
@@ -67,13 +76,20 @@ function overlayCORSBadge(img) {
 
 function sendNudityToAPI(imageData, img) {
     if (!imageData) return;
+    if (nudityRequestInFlight) return;
+    if (!isTabActiveAndVisible()) return;
+    const now = Date.now();
+    if (now - lastNudityRequestTime < NUDITY_REQUEST_COOLDOWN) return;
+    lastNudityRequestTime = now;
+    nudityRequestInFlight = true;
     console.log("\uD83D\uDCE4 Sending image to Django API...");
-    fetch("http://127.0.0.1:8000/nudity/classify_nudity/", {
+    fetch("http://127.0.0.1:8000/image/classify_nudity/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: imageData }),
     })
         .then(res => {
+            nudityRequestInFlight = false;
             const contentType = res.headers.get("content-type") || "";
             if (!contentType.includes("application/json")) {
                 throw new Error("Server did not return JSON");
@@ -101,6 +117,7 @@ function sendNudityToAPI(imageData, img) {
             }
         })
         .catch(err => {
+            nudityRequestInFlight = false;
             console.error("\u274C API error:", err);
         });
 }

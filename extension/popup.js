@@ -14,6 +14,15 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentScreenshot = null;
     let isCapturing = false;
 
+    console.log('[popup.js] DOMContentLoaded - requesting latest video results');
+    chrome.runtime.sendMessage({ type: 'GET_LATEST_VIDEO_RESULTS' }, (response) => {
+        console.log('[popup.js] Received response from GET_LATEST_VIDEO_RESULTS:', response);
+        if (response && response.data) {
+            console.log('[popup.js] Calling updateVideoResults with:', response.data);
+            updateVideoResults(response.data);
+        }
+    });
+
     // Load saved settings
     chrome.storage.sync.get(['violenceEnabled', 'nudityEnabled'], function (data) {
         violenceToggle.checked = data.violenceEnabled !== false;
@@ -64,11 +73,11 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             const patterns = await readPatternHistory();
             const newLine = `${pattern.timestamp},${pattern.doomscrollRate},${pattern.violenceRate},${pattern.status}`;
-            const newContent = 'timestamp,doomscrollRate,violenceRate,status\n' + 
-                [...patterns.slice(-9), pattern].map(p => 
+            const newContent = 'timestamp,doomscrollRate,violenceRate,status\n' +
+                [...patterns.slice(-9), pattern].map(p =>
                     `${p.timestamp},${p.doomscrollRate},${p.violenceRate},${p.status}`
                 ).join('\n');
-            
+
             // Create a blob and download it
             const blob = new Blob([newContent], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
@@ -93,16 +102,16 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             return 'stable';
         }
-        
+
         const improvement = {
             doomscroll: current.doomscrollRate < previous.doomscrollRate,
             violence: current.violenceRate < previous.violenceRate
         };
-        
+
         // Count improvements and worsenings
         const improvements = Object.values(improvement).filter(Boolean).length;
         const worsenings = Object.values(improvement).filter(v => !v).length;
-        
+
         // Only show improving if both metrics improved
         if (improvements === 2) return 'improving';
         // Show worsening if both metrics got worse
@@ -125,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return {
             doomscrollRate: patternMetrics.doomscrollCount / duration,
             violenceRate: patternMetrics.violenceCount / duration,
-            avgViolenceScore: patternMetrics.violenceCount > 0 ? 
+            avgViolenceScore: patternMetrics.violenceCount > 0 ?
                 patternMetrics.totalViolenceScore / patternMetrics.violenceCount : 0,
             timestamp: Date.now()
         };
@@ -141,9 +150,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const text = await response.text();
             const lines = text.split('\n').slice(1); // Skip header
             const latestPattern = lines[lines.length - 1];
-            
+
             console.log('Latest pattern from file:', latestPattern);
-            
+
             if (!latestPattern) {
                 patternDiv.innerHTML = `
                     <div class="result improving">
@@ -155,17 +164,17 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const [timestamp, doomscrollRate, violenceRate, status] = latestPattern.split(',');
-            
+
             console.log('Parsed pattern:', {
                 timestamp,
                 doomscrollRate,
                 violenceRate,
                 status
             });
-            
+
             let message = '';
             let icon = '';
-            
+
             switch (status.trim()) {
                 case 'improving':
                     message = 'Your browsing patterns are improving! 🌟';
@@ -179,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     message = 'Your browsing patterns are stable 📊';
                     icon = '📊';
             }
-            
+
             patternDiv.innerHTML = `
                 <div class="result ${status.trim()}">
                     <span class="result-icon">${icon}</span>
@@ -226,16 +235,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const patterns = await readPatternHistory();
         const previousPattern = patterns[patterns.length - 1];
         const status = comparePatterns(metrics, previousPattern);
-        
+
         // Create final pattern for this period
         const finalPattern = {
             ...metrics,
             status
         };
-        
+
         // Write to file
         await writePatternToFile(finalPattern);
-        
+
         // Reset metrics
         patternMetrics = {
             doomscrollCount: 0,
@@ -243,7 +252,7 @@ document.addEventListener('DOMContentLoaded', function () {
             totalViolenceScore: 0,
             startTime: Date.now()
         };
-        
+
         console.log('Pattern metrics reset:', patternMetrics);
         await updatePatternStatus();
     }, 300000);
@@ -404,7 +413,7 @@ document.addEventListener('DOMContentLoaded', function () {
             console.error('Warning div not found!');
             return;
         }
-        
+
         const warningElement = document.createElement('div');
         warningElement.className = 'result warning';
         warningElement.innerHTML = `
@@ -412,17 +421,17 @@ document.addEventListener('DOMContentLoaded', function () {
             <span>${warning.message}</span>
             <div class="warning-timestamp">${new Date(warning.timestamp).toLocaleTimeString()}</div>
         `;
-        
+
         // Remove the safe state message if it exists
         const safeMessage = warningsDiv.querySelector('.result.safe');
         if (safeMessage) {
             console.log('Removing safe state message');
             safeMessage.remove();
         }
-        
+
         warningsDiv.appendChild(warningElement);
         console.log('Warning element added to DOM');
-        
+
         // Remove warning after 1 minute
         setTimeout(() => {
             warningElement.remove();
@@ -443,7 +452,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Function to display usage pattern
     function displayUsagePattern(pattern) {
         console.log('Displaying usage pattern:', pattern);
-        
+
         // Get all required elements
         const patternDiv = document.getElementById('usage-pattern');
         const statusDiv = patternDiv?.querySelector('.pattern-status');
@@ -467,7 +476,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Update status
         statusDiv.className = `pattern-status ${pattern.status}`;
-        
+
         // Set status text and emoji
         let statusText = '';
         let statusEmoji = '';
@@ -484,9 +493,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 statusText = 'Your browsing patterns are stable 📊';
                 statusEmoji = '📊';
         }
-        
+
         patternText.textContent = statusText;
-        
+
         // Update metrics with actual values
         doomscrollRate.textContent = `${pattern.doomscrollRate.toFixed(2)}/min`;
         violenceRate.textContent = `${pattern.violenceRate.toFixed(2)}/min`;
@@ -510,7 +519,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Listen for pattern updates
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.log('Popup received message:', message);
-        
+
         if (message.type === 'pattern_update') {
             console.log('Received pattern update:', message.data);
             displayUsagePattern(message.data);
@@ -522,19 +531,19 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Load stored warnings when popup opens
-    document.addEventListener('DOMContentLoaded', async function() {
+    document.addEventListener('DOMContentLoaded', async function () {
         console.log('Popup loaded, loading stored data...');
-        
+
         // Load stored warnings
         chrome.storage.local.get(['warnings'], (result) => {
             const warnings = result.warnings || [];
             console.log('Loaded stored warnings:', warnings);
-            
+
             // Display all stored warnings
             warnings.forEach(warning => {
                 displayBehaviorWarning(warning);
             });
-            
+
             // Clear stored warnings after displaying
             chrome.storage.local.set({ warnings: [] });
         });
@@ -672,6 +681,107 @@ document.addEventListener('DOMContentLoaded', function () {
         statusDiv.textContent = isCapturing ? 'Capture active' : 'Capture inactive';
         statusDiv.className = 'status ' + (isCapturing ? 'active' : 'inactive');
     }
+
+    // Listen for brainrot detection updates from content script
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        if (message.type === 'brainrot_update') {
+            const { label, status, timestamp } = message.data;
+            // Update the results section
+            const resultsDiv = document.getElementById('brainrot-results');
+            if (resultsDiv) {
+                resultsDiv.innerHTML = '';
+                let resultClass = 'safe';
+                let icon = '✅';
+                let text = 'No brainrot content detected';
+                if (label === 'Brainrot') {
+                    resultClass = 'danger';
+                    icon = '⚠️';
+                    text = 'Brainrot detected!';
+                } else if (status === 'error') {
+                    resultClass = 'warning';
+                    icon = '❌';
+                    text = 'Analysis failed';
+                }
+                resultsDiv.innerHTML = `
+                    <div class="result ${resultClass}">
+                        <span class="result-icon">${icon}</span>
+                        <span>${text}</span>
+                    </div>
+                `;
+            }
+            // Update stats
+            const lastCheck = document.getElementById('last-check-time');
+            if (lastCheck) lastCheck.textContent = timestamp || '-';
+            const statusSpan = document.getElementById('brainrot-status');
+            if (statusSpan) statusSpan.textContent = status || '-';
+            const serverStatus = document.getElementById('server-status');
+            if (serverStatus) {
+                serverStatus.textContent = (status === 'connected') ? 'Connected' :
+                    (status === 'error') ? 'Error' :
+                        (status === 'disconnected') ? 'Disconnected' : status;
+                serverStatus.className = 'stat-value ' + (status || '');
+            }
+        }
+    });
+
+    function updateVideoResults(data) {
+        console.log('[popup.js] updateVideoResults called with:', data);
+        // Update Brainrot Results
+        const brainrotResults = document.getElementById('brainrot-results');
+        const lastCheckTime = document.getElementById('last-check-time');
+        const brainrotConfidence = document.getElementById('brainrot-confidence');
+
+        if (data.brainrot) {
+            brainrotResults.innerHTML = `
+                <div class="result ${data.brainrot.is_brainrot ? 'danger' : 'safe'}">
+                    <span class="result-icon">${data.brainrot.is_brainrot ? '⚠️' : '✅'}</span>
+                    <span>${data.brainrot.is_brainrot ? 'Brainrot content detected' : 'No brainrot content detected'}</span>
+                </div>
+            `;
+            lastCheckTime.textContent = new Date().toLocaleTimeString();
+            if (brainrotConfidence) brainrotConfidence.textContent = `${(data.brainrot.confidence * 100).toFixed(1)}%`;
+        }
+
+        // Update Violence Results
+        const violenceResults = document.getElementById('violence-results');
+        const violenceLastCheck = document.getElementById('violence-last-check');
+        const violenceConfidence = document.getElementById('violence-confidence');
+
+        if (data.violence) {
+            violenceResults.innerHTML = `
+                <div class="result ${data.violence.is_violence ? 'danger' : 'safe'}">
+                    <span class="result-icon">${data.violence.is_violence ? '⚠️' : '✅'}</span>
+                    <span>${data.violence.is_violence ? 'Violence detected' : 'No violence detected'}</span>
+                </div>
+            `;
+            violenceLastCheck.textContent = new Date().toLocaleTimeString();
+            violenceConfidence.textContent = `${(data.violence.confidence * 100).toFixed(1)}%`;
+        }
+
+        // Update Deepfake Results
+        const deepfakeResults = document.getElementById('deepfake-results');
+        const deepfakeLastCheck = document.getElementById('deepfake-last-check');
+        const deepfakeConfidence = document.getElementById('deepfake-confidence');
+
+        if (data.deepfake) {
+            deepfakeResults.innerHTML = `
+                <div class="result ${data.deepfake.is_deepfake ? 'danger' : 'safe'}">
+                    <span class="result-icon">${data.deepfake.is_deepfake ? '⚠️' : '✅'}</span>
+                    <span>${data.deepfake.is_deepfake ? 'Deepfake detected' : 'No deepfake detected'}</span>
+                </div>
+            `;
+            deepfakeLastCheck.textContent = new Date().toLocaleTimeString();
+            deepfakeConfidence.textContent = `${(data.deepfake.confidence * 100).toFixed(1)}%`;
+        }
+    }
+
+    // Update the message listener to handle all video analysis types
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        if (request.type === 'VIDEO_ANALYSIS_RESULTS') {
+            console.log('[popup.js] Received VIDEO_ANALYSIS_RESULTS:', request.data);
+            updateVideoResults(request.data);
+        }
+    });
 });
 
 // Function to be executed in the content script context

@@ -2,6 +2,9 @@
 const activeCaptures = new Map();
 let isCapturing = false;
 
+// Store the latest video analysis results
+globalThis.lastVideoResults = null;
+
 // Function to start tab capture
 async function startTabCapture(tabId) {
     try {
@@ -102,6 +105,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === "getStatus") {
         sendResponse({ isCapturing });
         return true;
+    }
+
+    if (message.type === 'VIDEO_ANALYSIS_RESULTS') {
+        console.log('[background.js] Received VIDEO_ANALYSIS_RESULTS:', message.data);
+        globalThis.lastVideoResults = message.data;
+        // Relay to popup if it's open
+        chrome.runtime.sendMessage({
+            type: 'VIDEO_ANALYSIS_RESULTS',
+            data: globalThis.lastVideoResults
+        });
+        console.log('[background.js] Relayed VIDEO_ANALYSIS_RESULTS to popup:', globalThis.lastVideoResults);
+    }
+    if (message.type === 'GET_LATEST_VIDEO_RESULTS') {
+        console.log('[background.js] Received GET_LATEST_VIDEO_RESULTS request');
+        sendResponse({ data: globalThis.lastVideoResults });
+        console.log('[background.js] Sent latest video results to popup:', globalThis.lastVideoResults);
     }
 });
 

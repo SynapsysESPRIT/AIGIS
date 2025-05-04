@@ -102,4 +102,62 @@
 
 .pattern-status.worsening .pattern-icon {
     color: #dc3545;
-} 
+}
+
+.video-analysis-group {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.video-analysis-group:last-child {
+    margin-bottom: 0;
+}
+
+.sub-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#video-results {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.brainrot-stats,
+.violence-stats,
+.deepfake-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+    font-size: 12px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stat-label {
+    color: #888;
+}
+
+.stat-value {
+    color: #fff;
+    font-weight: 500;
+}
+
+#brainrot-results,
+#violence-results,
+#deepfake-results {
+    margin-bottom: 8px;
+}

@@ -21,12 +21,7 @@
         "<all_urls>"
       ],
       "js": [
-        /*"content_scripts/video_content_script.js",
-        "content_scripts/audio_extraction_script.js",*/
-        "content_scripts/deepfake_content_script.js",
-        /*"content_scripts/content_script.js",*/
-        "content_scripts/text_content_script.js",
-        "content_scripts/nudity_content_script.js",
+        "content_scripts/video_script.js",
         "html2canvas.min.js"
       ],
       "all_frames": true

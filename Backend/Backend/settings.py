@@ -38,13 +38,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'brainrot_app',
-    'nudity_app',
-    'violence_app',
-    'text_app',
-    'audio_app',
-    'deepfake_app',
     'corsheaders',
+    'audio',
+    'video',
+    'image',
+    'text',
 ]
 
 MIDDLEWARE = [

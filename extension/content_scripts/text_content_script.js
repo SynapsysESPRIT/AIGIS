@@ -2,7 +2,16 @@ console.log("📝 Text extraction content script loaded!");
 
 // Configuration
 const GEMINI_API_KEY = 'AIzaSyAnjxxUiTFoL7RIBokjJ_uIh8DKdLXsdG0';
-const DJANGO_API_URL = 'http://127.0.0.1:8000/text-classification/';
+const DJANGO_API_URL = 'http://127.0.0.1:8000/text/classify_text/';
+
+// Global rate limiting
+let lastTextRequestTime = 0;
+let textRequestInFlight = false;
+const TEXT_REQUEST_COOLDOWN = 20000; // 20 seconds
+
+function isTabActiveAndVisible() {
+    return !document.hidden && document.visibilityState === 'visible';
+}
 
 // Function to preprocess CSS to handle modern color functions
 function preprocessCSS() {
@@ -146,6 +155,12 @@ Extract all visible text while maintaining this structure.`
 // Function to send text to Django API
 async function sendTextToAPI(text) {
     try {
+        if (textRequestInFlight) return null;
+        if (!isTabActiveAndVisible()) return null;
+        const now = Date.now();
+        if (now - lastTextRequestTime < TEXT_REQUEST_COOLDOWN) return null;
+        lastTextRequestTime = now;
+        textRequestInFlight = true;
         console.log('Sending text to API:', text.substring(0, 100) + '...'); // Log first 100 chars
 
         const response = await fetch(DJANGO_API_URL, {
@@ -157,6 +172,7 @@ async function sendTextToAPI(text) {
         });
 
         const responseData = await response.json();
+        textRequestInFlight = false;
 
         if (!response.ok) {
             throw new Error(`Django API error: ${response.status} ${response.statusText}\n${JSON.stringify(responseData)}`);
@@ -172,6 +188,7 @@ async function sendTextToAPI(text) {
 
         return responseData;
     } catch (error) {
+        textRequestInFlight = false;
         console.error('Error sending text to API:', error);
         return null;
     }
