@@ -1,0 +1,105 @@
+/* Behavior Monitoring Styles */
+#behavior-warnings {
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.result {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 4px;
+    background-color: #fff;
+}
+
+.result-icon {
+    margin-right: 8px;
+    font-size: 1.2em;
+}
+
+.result.safe {
+    color: #28a745;
+}
+
+.result.warning {
+    color: #ffc107;
+}
+
+.result.danger {
+    color: #dc3545;
+}
+
+.warning-timestamp {
+    font-size: 0.8em;
+    color: #6c757d;
+    margin-left: auto;
+}
+
+/* Controls Styles */
+.result.warning {
+    background-color: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 4px;
+}
+
+.result.warning .result-icon {
+    color: #ffc107;
+}
+
+.pattern-summary {
+    padding: 12px;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.pattern-status {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.pattern-icon {
+    font-size: 24px;
+    margin-right: 8px;
+}
+
+.pattern-text {
+    font-weight: 500;
+    color: #1a1a1a;
+}
+
+.pattern-metrics {
+    display: grid;
+    gap: 8px;
+}
+
+.metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.metric-label {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.metric-value {
+    font-weight: 500;
+    color: #1a1a1a;
+}
+
+/* Pattern status colors */
+.pattern-status.improving .pattern-icon {
+    color: #28a745;
+}
+
+.pattern-status.worsening .pattern-icon {
+    color: #dc3545;
+} 
