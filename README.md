@@ -82,7 +82,47 @@ Children are increasingly exposed to online threats:
 
 ---
 
+## 🚀 Getting Started
 
+### 1. Clone the Repository
+```bash
+git clone https://github.com/SynapsysESPRIT/AIGIS.git
+cd AIGIS
+```
+
+### 2. Set Up the Backend (Django)
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+**Important:** After activating your environment, set your Hugging Face token:
+```bash
+export HUGGINGFACE_TOKEN=your_token_here  # On Windows: set HUGGINGFACE_TOKEN=your_token_here
+```
+
+### 3. Run the Backend Server
+```bash
+cd Backend
+python manage.py migrate
+python manage.py runserver
+```
+
+### 4. Set Up the Extension (Frontend)
+- Open Chrome and go to `chrome://extensions/`
+- Enable "Developer mode"
+- Click "Load unpacked" and select the `extension` folder
+
+
+
+---
+
+- The backend will be available at `http://127.0.0.1:8000/`
+- The extension popup will be available in your browser toolbar after loading.
+- Make sure the backend is running before using the extension for detection features.
+
+---
 
 ## 📝 License
 
