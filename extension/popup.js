@@ -38,14 +38,215 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // Function to read pattern history from file
+    async function readPatternHistory() {
+        try {
+            const response = await fetch(chrome.runtime.getURL('pattern_history.txt'));
+            const text = await response.text();
+            const lines = text.split('\n').slice(1); // Skip header
+            return lines.map(line => {
+                const [timestamp, doomscrollRate, violenceRate, status] = line.split(',');
+                return {
+                    timestamp: parseInt(timestamp),
+                    doomscrollRate: parseFloat(doomscrollRate),
+                    violenceRate: parseFloat(violenceRate),
+                    status
+                };
+            }).filter(pattern => !isNaN(pattern.timestamp));
+        } catch (error) {
+            console.error('Error reading pattern history:', error);
+            return [];
+        }
+    }
+
+    // Function to write pattern to file
+    async function writePatternToFile(pattern) {
+        try {
+            const patterns = await readPatternHistory();
+            const newLine = `${pattern.timestamp},${pattern.doomscrollRate},${pattern.violenceRate},${pattern.status}`;
+            const newContent = 'timestamp,doomscrollRate,violenceRate,status\n' + 
+                [...patterns.slice(-9), pattern].map(p => 
+                    `${p.timestamp},${p.doomscrollRate},${p.violenceRate},${p.status}`
+                ).join('\n');
+            
+            // Create a blob and download it
+            const blob = new Blob([newContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'pattern_history.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error writing pattern to file:', error);
+        }
+    }
+
+    // Function to compare patterns
+    function comparePatterns(current, previous) {
+        if (!previous) {
+            // For the first pattern, only show improving if both rates are 0
+            if (current.doomscrollRate === 0 && current.violenceRate === 0) {
+                return 'improving';
+            }
+            return 'stable';
+        }
+        
+        const improvement = {
+            doomscroll: current.doomscrollRate < previous.doomscrollRate,
+            violence: current.violenceRate < previous.violenceRate
+        };
+        
+        // Count improvements and worsenings
+        const improvements = Object.values(improvement).filter(Boolean).length;
+        const worsenings = Object.values(improvement).filter(v => !v).length;
+        
+        // Only show improving if both metrics improved
+        if (improvements === 2) return 'improving';
+        // Show worsening if both metrics got worse
+        if (worsenings === 2) return 'worsening';
+        // Show stable if one improved and one worsened
+        return 'stable';
+    }
+
+    // Track pattern metrics
+    let patternMetrics = {
+        doomscrollCount: 0,
+        violenceCount: 0,
+        totalViolenceScore: 0,
+        startTime: Date.now()
+    };
+
+    // Function to calculate pattern metrics
+    function calculatePatternMetrics() {
+        const duration = Math.max(1, (Date.now() - patternMetrics.startTime) / 60000); // in minutes, minimum 1
+        return {
+            doomscrollRate: patternMetrics.doomscrollCount / duration,
+            violenceRate: patternMetrics.violenceCount / duration,
+            avgViolenceScore: patternMetrics.violenceCount > 0 ? 
+                patternMetrics.totalViolenceScore / patternMetrics.violenceCount : 0,
+            timestamp: Date.now()
+        };
+    }
+
+    // Function to update pattern status
+    async function updatePatternStatus() {
+        const patternDiv = document.getElementById('pattern-status');
+        if (!patternDiv) return;
+
+        try {
+            const response = await fetch(chrome.runtime.getURL('pattern_history.txt'));
+            const text = await response.text();
+            const lines = text.split('\n').slice(1); // Skip header
+            const latestPattern = lines[lines.length - 1];
+            
+            console.log('Latest pattern from file:', latestPattern);
+            
+            if (!latestPattern) {
+                patternDiv.innerHTML = `
+                    <div class="result improving">
+                        <span class="result-icon">🌟</span>
+                        <span>Starting to track your patterns...</span>
+                    </div>
+                `;
+                return;
+            }
+
+            const [timestamp, doomscrollRate, violenceRate, status] = latestPattern.split(',');
+            
+            console.log('Parsed pattern:', {
+                timestamp,
+                doomscrollRate,
+                violenceRate,
+                status
+            });
+            
+            let message = '';
+            let icon = '';
+            
+            switch (status.trim()) {
+                case 'improving':
+                    message = 'Your browsing patterns are improving! 🌟';
+                    icon = '🌟';
+                    break;
+                case 'worsening':
+                    message = 'Your browsing patterns need attention ⚠️';
+                    icon = '⚠️';
+                    break;
+                default:
+                    message = 'Your browsing patterns are stable 📊';
+                    icon = '📊';
+            }
+            
+            patternDiv.innerHTML = `
+                <div class="result ${status.trim()}">
+                    <span class="result-icon">${icon}</span>
+                    <span>${message}</span>
+                    <div class="pattern-metrics">
+                        <div>Doomscroll Rate: ${parseFloat(doomscrollRate).toFixed(2)}/min</div>
+                        <div>Violence Rate: ${parseFloat(violenceRate).toFixed(2)}/min</div>
+                    </div>
+                </div>
+            `;
+        } catch (error) {
+            console.error('Error updating pattern status:', error);
+        }
+    }
+
+    // Check for pattern updates every 30 seconds
+    setInterval(async () => {
+        await updatePatternStatus();
+    }, 30000);
+
     // Listen for detection results from content scripts
-    chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+    chrome.runtime.onMessage.addListener(async function (request, sender, sendResponse) {
         if (request.type === 'violenceResult') {
             updateViolenceResult(request.data);
+            if (request.data.is_violent) {
+                patternMetrics.violenceCount++;
+                patternMetrics.totalViolenceScore += request.data.confidence || 1;
+                console.log('Updated violence metrics:', patternMetrics);
+                await updatePatternStatus();
+            }
         } else if (request.type === 'nudityResult') {
             updateNudityResult(request.data);
+        } else if (request.type === 'behavior_warning') {
+            displayBehaviorWarning(request.data);
+            patternMetrics.doomscrollCount++;
+            console.log('Updated doomscroll metrics:', patternMetrics);
+            await updatePatternStatus();
         }
     });
+
+    // Reset pattern metrics every 5 minutes
+    setInterval(async () => {
+        const metrics = calculatePatternMetrics();
+        const patterns = await readPatternHistory();
+        const previousPattern = patterns[patterns.length - 1];
+        const status = comparePatterns(metrics, previousPattern);
+        
+        // Create final pattern for this period
+        const finalPattern = {
+            ...metrics,
+            status
+        };
+        
+        // Write to file
+        await writePatternToFile(finalPattern);
+        
+        // Reset metrics
+        patternMetrics = {
+            doomscrollCount: 0,
+            violenceCount: 0,
+            totalViolenceScore: 0,
+            startTime: Date.now()
+        };
+        
+        console.log('Pattern metrics reset:', patternMetrics);
+        await updatePatternStatus();
+    }, 300000);
 
     // Function to create a probability bar
     function createProbabilityBar(probability, type) {
@@ -182,10 +383,164 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Listen for messages from content script
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        console.log('Popup received message:', message);
         if (message.type === 'textClassificationResults') {
             console.log('Received text classification results:', message.results);
             displayTextResults(message.results);
+        } else if (message.type === 'behavior_warning') {
+            console.log('Received behavior warning:', message.data);
+            displayBehaviorWarning(message.data);
+        } else if (message.type === 'usage_pattern_update') {
+            console.log('Received usage pattern update:', message.data);
+            displayUsagePattern(message.data);
         }
+    });
+
+    // Function to display behavior warnings
+    function displayBehaviorWarning(warning) {
+        console.log('Displaying behavior warning:', warning);
+        const warningsDiv = document.getElementById('behavior-warnings');
+        if (!warningsDiv) {
+            console.error('Warning div not found!');
+            return;
+        }
+        
+        const warningElement = document.createElement('div');
+        warningElement.className = 'result warning';
+        warningElement.innerHTML = `
+            <span class="result-icon">⚠️</span>
+            <span>${warning.message}</span>
+            <div class="warning-timestamp">${new Date(warning.timestamp).toLocaleTimeString()}</div>
+        `;
+        
+        // Remove the safe state message if it exists
+        const safeMessage = warningsDiv.querySelector('.result.safe');
+        if (safeMessage) {
+            console.log('Removing safe state message');
+            safeMessage.remove();
+        }
+        
+        warningsDiv.appendChild(warningElement);
+        console.log('Warning element added to DOM');
+        
+        // Remove warning after 1 minute
+        setTimeout(() => {
+            warningElement.remove();
+            console.log('Warning element removed from DOM');
+            // If no warnings left, show safe state
+            if (!warningsDiv.querySelector('.result')) {
+                console.log('No warnings left, showing safe state');
+                warningsDiv.innerHTML = `
+                    <div class="result safe">
+                        <span class="result-icon">✅</span>
+                        <span>Normal browsing patterns detected</span>
+                    </div>
+                `;
+            }
+        }, 60000);
+    }
+
+    // Function to display usage pattern
+    function displayUsagePattern(pattern) {
+        console.log('Displaying usage pattern:', pattern);
+        
+        // Get all required elements
+        const patternDiv = document.getElementById('usage-pattern');
+        const statusDiv = patternDiv?.querySelector('.pattern-status');
+        const patternText = patternDiv?.querySelector('.pattern-text');
+        const doomscrollRate = document.getElementById('doomscroll-rate');
+        const violenceRate = document.getElementById('violence-rate');
+        const violenceScore = document.getElementById('violence-score');
+
+        // Check if all elements exist
+        if (!patternDiv || !statusDiv || !patternText || !doomscrollRate || !violenceRate || !violenceScore) {
+            console.error('Required pattern elements not found!', {
+                patternDiv: !!patternDiv,
+                statusDiv: !!statusDiv,
+                patternText: !!patternText,
+                doomscrollRate: !!doomscrollRate,
+                violenceRate: !!violenceRate,
+                violenceScore: !!violenceScore
+            });
+            return;
+        }
+
+        // Update status
+        statusDiv.className = `pattern-status ${pattern.status}`;
+        
+        // Set status text and emoji
+        let statusText = '';
+        let statusEmoji = '';
+        switch (pattern.status) {
+            case 'improving':
+                statusText = 'Your browsing patterns are improving! 🌟';
+                statusEmoji = '🌟';
+                break;
+            case 'worsening':
+                statusText = 'Your browsing patterns need attention ⚠️';
+                statusEmoji = '⚠️';
+                break;
+            default:
+                statusText = 'Your browsing patterns are stable 📊';
+                statusEmoji = '📊';
+        }
+        
+        patternText.textContent = statusText;
+        
+        // Update metrics with actual values
+        doomscrollRate.textContent = `${pattern.doomscrollRate.toFixed(2)}/min`;
+        violenceRate.textContent = `${pattern.violenceRate.toFixed(2)}/min`;
+        violenceScore.textContent = `${(pattern.avgViolenceScore * 100).toFixed(1)}%`;
+
+        console.log('Pattern display updated:', pattern);
+    }
+
+    // Function to check for pattern updates
+    function checkPatternUpdate() {
+        chrome.storage.local.get(['currentPattern'], (result) => {
+            if (result.currentPattern) {
+                console.log('Found pattern update:', result.currentPattern);
+                displayUsagePattern(result.currentPattern);
+            } else {
+                console.log('No pattern found in storage');
+            }
+        });
+    }
+
+    // Listen for pattern updates
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        console.log('Popup received message:', message);
+        
+        if (message.type === 'pattern_update') {
+            console.log('Received pattern update:', message.data);
+            displayUsagePattern(message.data);
+        } else if (message.type === 'behavior_warning') {
+            console.log('Received behavior warning:', message.data);
+            // Request pattern update when behavior warning is received
+            checkPatternUpdate();
+        }
+    });
+
+    // Load stored warnings when popup opens
+    document.addEventListener('DOMContentLoaded', async function() {
+        console.log('Popup loaded, loading stored data...');
+        
+        // Load stored warnings
+        chrome.storage.local.get(['warnings'], (result) => {
+            const warnings = result.warnings || [];
+            console.log('Loaded stored warnings:', warnings);
+            
+            // Display all stored warnings
+            warnings.forEach(warning => {
+                displayBehaviorWarning(warning);
+            });
+            
+            // Clear stored warnings after displaying
+            chrome.storage.local.set({ warnings: [] });
+        });
+
+        // Load and display current pattern
+        await updatePatternStatus();
     });
 
     // Initial scan when popup opens
@@ -286,33 +641,31 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Handle button click
-    // Handle button click
-toggleButton.addEventListener('click', function () {
-    if (!isCapturing) {
-        // Start capture
-        chrome.runtime.sendMessage({ action: "startCapture" }, function (response) {
-            if (response.success) {
-                isCapturing = true;
-                updateUI();
-            } else {
-                statusDiv.textContent = 'Failed to start capture: ' + (response.error || 'Unknown error');
-                statusDiv.className = 'status inactive';
-            }
-        });
-    } else {
-        // Stop capture
-        chrome.runtime.sendMessage({ action: "stopCapture" }, function (response) {
-            if (response.success) {
-                isCapturing = false;
-                updateUI();
-            } else {
-                statusDiv.textContent = 'Failed to stop capture: ' + (response.error || 'Unknown error');
-                statusDiv.className = 'status inactive';
-            }
-        });
-    }
-});
-
+    toggleButton.addEventListener('click', function () {
+        if (!isCapturing) {
+            // Start capture
+            chrome.runtime.sendMessage({ action: "startCapture" }, function (response) {
+                if (response.success) {
+                    isCapturing = true;
+                    updateUI();
+                } else {
+                    statusDiv.textContent = 'Failed to start capture: ' + (response.error || 'Unknown error');
+                    statusDiv.className = 'status inactive';
+                }
+            });
+        } else {
+            // Stop capture
+            chrome.runtime.sendMessage({ action: "stopCapture" }, function (response) {
+                if (response.success) {
+                    isCapturing = false;
+                    updateUI();
+                } else {
+                    statusDiv.textContent = 'Failed to stop capture: ' + (response.error || 'Unknown error');
+                    statusDiv.className = 'status inactive';
+                }
+            });
+        }
+    });
 
     function updateUI() {
         toggleButton.textContent = isCapturing ? 'Stop Capture' : 'Start Capture';

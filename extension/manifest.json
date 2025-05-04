@@ -26,6 +26,8 @@
         /*"content_scripts/content_script.js",*/
         "content_scripts/text_content_script.js",
         "content_scripts/nudity_content_script.js",
+        "content_scripts/behavior_monitor_script.js",
+        "content_scripts/usage_pattern_analyzer.js",
         "html2canvas.min.js"
       ],
       "all_frames": true
