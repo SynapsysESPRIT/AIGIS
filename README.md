@@ -1,6 +1,7 @@
 # 🔱 Aigis 🔱
 <p align="center">
-  <img src="https://raw.githubusercontent.com/SynapsysESPRIT/AIGIS/main/extension/icons/icon16.png" width="100" alt="AIGIS Icon">
+  ![Aigis__1_-removebg-preview](https://github.com/user-attachments/assets/4adb7808-d4c6-4e38-a7b8-f3b3d9c10e13)
+
 </p>
 
 
