@@ -1,17 +1,12 @@
 // Usage pattern analysis configuration
 const ANALYSIS_INTERVAL = 300000; // 5 minutes
 const VIOLENCE_THRESHOLD = 0.5; // Violence detection threshold
-const DOOMSCROLL_THRESHOLD = 2; // Number of doomscroll warnings per interval
-
-// Pattern tracking configuration
-const PATTERN_INTERVAL = 300000; // 5 minutes
-const MAX_PATTERNS = 10; // Keep last 10 patterns
+const DOOMSCROLL_THRESHOLD = 2; // Doomscroll events per minute threshold
 
 // Track current session
 let currentPattern = {
     doomscrollCount: 0,
     violenceCount: 0,
-    totalViolenceScore: 0,
     startTime: Date.now()
 };
 
@@ -21,101 +16,87 @@ function calculatePatternMetrics() {
     return {
         doomscrollRate: currentPattern.doomscrollCount / duration,
         violenceRate: currentPattern.violenceCount / duration,
-        avgViolenceScore: currentPattern.violenceCount > 0 ? 
-            currentPattern.totalViolenceScore / currentPattern.violenceCount : 0,
         timestamp: Date.now()
     };
 }
 
-// Function to compare patterns
-function comparePatterns(current, previous) {
-    if (!previous) return 'improving'; // First pattern is always improving
+// Function to determine status
+function determineStatus(metrics) {
+    console.log('Checking status with metrics:', metrics);
     
-    const improvement = {
-        doomscroll: current.doomscrollRate < previous.doomscrollRate,
-        violence: current.violenceRate < previous.violenceRate,
-        severity: current.avgViolenceScore < previous.avgViolenceScore
-    };
-    
-    // Count improvements
-    const improvements = Object.values(improvement).filter(Boolean).length;
-    
-    if (improvements >= 2) return 'improving';
-    if (improvements <= 1) return 'worsening';
-    return 'stable';
+    // If either doomscrolling or violence is above threshold, status is bad
+    if (metrics.doomscrollRate >= DOOMSCROLL_THRESHOLD || metrics.violenceRate >= VIOLENCE_THRESHOLD) {
+        console.log('Status: bad (doomscroll:', metrics.doomscrollRate, 'violence:', metrics.violenceRate, ')');
+        return 'bad';
+    }
+    console.log('Status: good (doomscroll:', metrics.doomscrollRate, 'violence:', metrics.violenceRate, ')');
+    return 'good';
 }
 
 // Function to update pattern
-function updatePattern(type, severity = 1) {
-    console.log('Updating pattern for:', type, 'with severity:', severity);
+function updatePattern(type) {
+    console.log('Updating pattern for:', type);
     
     if (type === 'doomscroll') {
         currentPattern.doomscrollCount++;
+        console.log('New doomscroll count:', currentPattern.doomscrollCount);
     } else if (type === 'violence') {
         currentPattern.violenceCount++;
-        currentPattern.totalViolenceScore += severity;
+        console.log('New violence count:', currentPattern.violenceCount);
     }
     
-    // Store current metrics
+    // Calculate current metrics
     const metrics = calculatePatternMetrics();
-    chrome.storage.local.get(['patterns'], (result) => {
-        const patterns = result.patterns || [];
-        const previousPattern = patterns[patterns.length - 1];
-        const status = comparePatterns(metrics, previousPattern);
-        
-        const pattern = {
-            ...metrics,
-            status,
-            type: 'current'
-        };
-        
-        // Update storage
-        chrome.storage.local.set({ 
-            currentPattern: pattern,
-            patterns: [...patterns.slice(-MAX_PATTERNS), pattern]
-        }, () => {
-            console.log('Pattern updated:', pattern);
-            try {
-                chrome.runtime.sendMessage({
-                    type: 'pattern_update',
-                    data: pattern
-                });
-            } catch (error) {
-                console.log('Error sending pattern update:', error);
-            }
-        });
+    const status = determineStatus(metrics);
+    
+    const pattern = {
+        ...metrics,
+        status,
+        type: 'current'
+    };
+    
+    console.log('Pattern updated:', pattern);
+    
+    // Update storage and trigger UI update
+    chrome.storage.local.set({ 
+        currentPattern: pattern
+    }, () => {
+        try {
+            chrome.runtime.sendMessage({
+                type: 'pattern_update',
+                data: pattern
+            });
+        } catch (error) {
+            console.log('Error sending pattern update:', error);
+        }
     });
 }
 
 // Reset pattern periodically
 setInterval(() => {
     const metrics = calculatePatternMetrics();
-    chrome.storage.local.get(['patterns'], (result) => {
-        const patterns = result.patterns || [];
-        const previousPattern = patterns[patterns.length - 1];
-        const status = comparePatterns(metrics, previousPattern);
-        
-        const pattern = {
-            ...metrics,
-            status,
-            type: 'periodic'
-        };
-        
-        // Store the pattern
-        chrome.storage.local.set({ 
-            currentPattern: pattern,
-            patterns: [...patterns.slice(-MAX_PATTERNS), pattern]
-        });
-        
-        // Reset current pattern
-        currentPattern = {
-            doomscrollCount: 0,
-            violenceCount: 0,
-            totalViolenceScore: 0,
-            startTime: Date.now()
-        };
+    const status = determineStatus(metrics);
+    
+    const pattern = {
+        ...metrics,
+        status,
+        type: 'periodic'
+    };
+    
+    // Store the pattern
+    chrome.storage.local.set({ 
+        currentPattern: pattern
     });
-}, PATTERN_INTERVAL);
+    
+    // Reset current pattern
+    currentPattern = {
+        doomscrollCount: 0,
+        violenceCount: 0,
+        startTime: Date.now()
+    };
+    
+    console.log('Pattern reset:', pattern);
+}, ANALYSIS_INTERVAL);
 
 // Listen for events
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -124,24 +105,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'behavior_warning') {
         console.log('Processing behavior warning:', message.data);
         if (message.data.type === 'rapid_scrolling' || 
-            message.data.type === 'passive_consumption' || 
-            message.data.type === 'reel_binge') {
-            updatePattern('doomscroll', 1);
+            message.data.type === 'reel_binge' ||
+            message.data.type === 'passive_consumption') {
+            updatePattern('doomscroll');
         }
     } else if (message.type === 'violenceResult') {
         console.log('Processing violence result:', message.data);
         if (message.data.is_violent && message.data.confidence > 0.5) {
-            updatePattern('violence', message.data.confidence);
+            updatePattern('violence');
         }
     }
 });
 
-// Initialize with a normal pattern
-updatePattern('normal', 0);
-
-// Reset pattern after 1 minute
-setInterval(() => {
-    if (lastEvent && (Date.now() - lastEvent.timestamp > 60000)) {
-        updatePattern('normal', 0);
-    }
-}, 10000); // Check every 10 seconds 
+// Initialize with a good pattern
+updatePattern('normal'); 

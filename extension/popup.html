@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>AIGIS - Content Detection</title>
+    <link rel="stylesheet" href="popup.css">
     <style>
         body {
             width: 400px;
@@ -280,8 +281,21 @@
 </head>
 <body>
     <div class="header">
-        <div class="logo">👁️</div>
-        <div class="title">AIGIS Protection</div>
+        <div class="logo">🤖</div>
+        <div class="title">AIGIS Companion</div>
+    </div>
+
+    <!-- Companion Display -->
+    <div class="companion-section">
+        <div class="companion-display">
+            <img id="companion-sprite" src="sprites/happy.gif" alt="AIGIS Companion">
+        </div>
+        <div id="pattern-status" class="pattern-status">
+            <div class="result good">
+                <span class="result-icon">🌟</span>
+                <span>Starting to track your patterns...</span>
+            </div>
+        </div>
     </div>
 
     <div class="status active">

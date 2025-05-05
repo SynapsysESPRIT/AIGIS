@@ -143,71 +143,89 @@ document.addEventListener('DOMContentLoaded', function () {
     // Function to update pattern status
     async function updatePatternStatus() {
         const patternDiv = document.getElementById('pattern-status');
-        if (!patternDiv) return;
+        const companionSprite = document.getElementById('companion-sprite');
+        if (!patternDiv || !companionSprite) return;
 
         try {
-            const response = await fetch(chrome.runtime.getURL('pattern_history.txt'));
-            const text = await response.text();
-            const lines = text.split('\n').slice(1); // Skip header
-            const latestPattern = lines[lines.length - 1];
+            // Get current pattern from storage
+            chrome.storage.local.get(['currentPattern'], (result) => {
+                const pattern = result.currentPattern;
+                
+                if (!pattern) {
+                    // Initialize with a good pattern
+                    const initialPattern = {
+                        doomscrollRate: 0,
+                        violenceRate: 0,
+                        status: 'good',
+                        timestamp: Date.now()
+                    };
+                    
+                    // Store the initial pattern
+                    chrome.storage.local.set({ currentPattern: initialPattern });
+                    
+                    patternDiv.innerHTML = `
+                        <div class="result good">
+                            <span class="result-icon">🌟</span>
+                            <span>Starting to track your patterns...</span>
+                        </div>
+                    `;
+                    companionSprite.src = 'sprites/happy.gif';
+                    return;
+                }
 
-            console.log('Latest pattern from file:', latestPattern);
+                console.log('Current pattern:', pattern);
 
-            if (!latestPattern) {
-                patternDiv.innerHTML = `
-                    <div class="result improving">
-                        <span class="result-icon">🌟</span>
-                        <span>Starting to track your patterns...</span>
-                    </div>
-                `;
-                return;
-            }
+                let message = '';
+                let icon = '';
+                let sprite = '';
 
-            const [timestamp, doomscrollRate, violenceRate, status] = latestPattern.split(',');
-
-            console.log('Parsed pattern:', {
-                timestamp,
-                doomscrollRate,
-                violenceRate,
-                status
-            });
-
-            let message = '';
-            let icon = '';
-
-            switch (status.trim()) {
-                case 'improving':
-                    message = 'Your browsing patterns are improving! 🌟';
+                if (pattern.status === 'good') {
+                    message = 'Your browsing patterns are good! 🌟';
                     icon = '🌟';
-                    break;
-                case 'worsening':
-                    message = 'Your browsing patterns need attention ⚠️';
+                    sprite = 'sprites/happy.gif';
+                } else if (pattern.status === 'bad') {
+                    message = '⚠️ Warning: Negative browsing patterns detected ⚠️';
                     icon = '⚠️';
-                    break;
-                default:
+                    sprite = 'sprites/sad.gif';
+                } else {
                     message = 'Your browsing patterns are stable 📊';
                     icon = '📊';
-            }
+                    sprite = 'sprites/sleepy.gif';
+                }
 
-            patternDiv.innerHTML = `
-                <div class="result ${status.trim()}">
-                    <span class="result-icon">${icon}</span>
-                    <span>${message}</span>
-                    <div class="pattern-metrics">
-                        <div>Doomscroll Rate: ${parseFloat(doomscrollRate).toFixed(2)}/min</div>
-                        <div>Violence Rate: ${parseFloat(violenceRate).toFixed(2)}/min</div>
+                patternDiv.innerHTML = `
+                    <div class="result ${pattern.status}">
+                        <span class="result-icon">${icon}</span>
+                        <span>${message}</span>
+                        <div class="pattern-metrics">
+                            <div>Doomscroll Rate: ${pattern.doomscrollRate.toFixed(2)}/min</div>
+                            <div>Violence Rate: ${pattern.violenceRate.toFixed(2)}/min</div>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+
+                companionSprite.src = sprite;
+            });
         } catch (error) {
             console.error('Error updating pattern status:', error);
         }
     }
 
-    // Check for pattern updates every 30 seconds
+    // Check for pattern updates every 5 seconds
     setInterval(async () => {
         await updatePatternStatus();
-    }, 30000);
+    }, 5000);
+
+    // Listen for pattern updates
+    chrome.runtime.onMessage.addListener(async function (request, sender, sendResponse) {
+        if (request.type === 'pattern_update') {
+            console.log('Received pattern update:', request.data);
+            await updatePatternStatus();
+        }
+    });
+
+    // Initial update
+    updatePatternStatus();
 
     // Listen for detection results from content scripts
     chrome.runtime.onMessage.addListener(async function (request, sender, sendResponse) {
@@ -782,6 +800,23 @@ document.addEventListener('DOMContentLoaded', function () {
             updateVideoResults(request.data);
         }
     });
+
+    // Handle companion click
+    const companionSprite = document.getElementById('companion-sprite');
+    if (companionSprite) {
+        companionSprite.addEventListener('click', function() {
+            // Store the current sprite
+            const currentSprite = this.src;
+            
+            // Change to touched sprite
+            this.src = 'sprites/touched.gif';
+            
+            // Change back after 1 second
+            setTimeout(() => {
+                this.src = currentSprite;
+            }, 1000);
+        });
+    }
 });
 
 // Function to be executed in the content script context

@@ -104,8 +104,9 @@
     color: #dc3545;
 }
 
+/* Video Analysis Styles */
 .video-analysis-group {
-    background: rgba(255, 255, 255, 0.05);
+    background: #f8f9fa;
     border-radius: 8px;
     padding: 12px;
     margin-bottom: 12px;
@@ -119,7 +120,7 @@
     font-size: 14px;
     font-weight: 600;
     margin-bottom: 8px;
-    color: #fff;
+    color: #1a1a1a;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -148,11 +149,11 @@
 }
 
 .stat-label {
-    color: #888;
+    color: #666;
 }
 
 .stat-value {
-    color: #fff;
+    color: #1a1a1a;
     font-weight: 500;
 }
 
@@ -160,4 +161,27 @@
 #violence-results,
 #deepfake-results {
     margin-bottom: 8px;
+}
+
+/* Companion Display Styles */
+.companion-section {
+    margin-bottom: 16px;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.companion-display {
+    margin-bottom: 16px;
+}
+
+.companion-display img {
+    width: 120px;
+    height: 120px;
+    object-fit: contain;
+}
+
+.pattern-status {
+    margin-top: 8px;
 }
