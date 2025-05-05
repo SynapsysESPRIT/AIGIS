@@ -132,7 +132,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 MIT License
 
-Copyright (c) 2025 Synapsis™
+Copyright (c) 2025 Synapsys™
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the “Software”), to deal
@@ -155,5 +155,9 @@ SOFTWARE.
 Note: This project aims to support the protection of children online through
 AI-based tools. It is the responsibility of users to ensure the ethical and
 legal deployment of this software, especially when handling sensitive data.
+
+![ezgif-127d46ce31ce9a](https://github.com/user-attachments/assets/d9ea5a71-6023-4e5d-97f3-f1916aac3c0c)
+
+
 
 
