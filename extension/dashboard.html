@@ -6,6 +6,12 @@
     <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
+    <div class="coin-display">
+        <div class="coin-amount">
+            <span class="coin-icon">🪙</span>
+            <span class="coin-value">1000</span>
+        </div>
+    </div>
     <div class="dashboard-container">
         <header class="dashboard-header">
             <div class="header-content">
@@ -27,12 +33,28 @@
             <section class="dashboard-section">
                 <h2>Companion Settings</h2>
                 <div class="companion-settings">
-                    <div class="companion-preview">
-                        <img id="preview-sprite" src="sprites/happy.gif" alt="Companion Preview">
-                        <div class="preview-controls">
-                            <button id="preview-happy" class="preview-button">Happy</button>
-                            <button id="preview-sad" class="preview-button">Sad</button>
-                            <button id="preview-sleepy" class="preview-button">Sleepy</button>
+                    <div class="playground-container">
+                        <div class="playground">
+                            <div class="background-layer"></div>
+                            <div class="materials-layer"></div>
+                            <div class="companion-layer">
+                                <img id="preview-sprite" src="sprites/happy.gif" alt="Companion Preview">
+                            </div>
+                        </div>
+                        <div class="playground-controls">
+                            <div class="preview-controls">
+                                <button id="preview-happy" class="preview-button">Happy</button>
+                                <button id="preview-sad" class="preview-button">Sad</button>
+                                <button id="preview-sleepy" class="preview-button">Sleepy</button>
+                            </div>
+                            <div class="background-controls">
+                                <h4>Backgrounds</h4>
+                                <div class="background-list"></div>
+                            </div>
+                            <div class="materials-controls">
+                                <h4>Materials</h4>
+                                <div class="materials-list"></div>
+                            </div>
                         </div>
                     </div>
                     <div class="companion-selection">

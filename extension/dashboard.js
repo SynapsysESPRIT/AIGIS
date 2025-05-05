@@ -34,6 +34,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Companion Settings
     let companions = [];
     let currentCompanion = null;
+    let userCoins = 1000; // Default coins
+    let unlockedBackgrounds = [];
+    let unlockedMaterials = [];
+    let currentBackground = null;
+    let placedMaterials = [];
 
     async function loadCompanions() {
         try {
@@ -42,6 +47,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 {
                     id: 'owl',
                     name: 'Owl',
+                    price: 0, // Free companion
+                    unlocked: true,
                     sprites: {
                         happy: 'sprites/owl/happy.gif',
                         sad: 'sprites/owl/sad.gif',
@@ -52,6 +59,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 {
                     id: 'cat',
                     name: 'Cat',
+                    price: 100,
+                    unlocked: false,
                     sprites: {
                         happy: 'sprites/cat/happy.gif',
                         sad: 'sprites/cat/sad.gif',
@@ -61,10 +70,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             ];
 
-            // Load current companion from storage
-            chrome.storage.local.get(['currentCompanion'], (result) => {
-                currentCompanion = result.currentCompanion || companions[0];
-                updateCompanionDisplay();
+            // Load user coins and unlocked companions from storage
+            chrome.storage.local.get(['userCoins', 'unlockedCompanions'], (result) => {
+                userCoins = result.userCoins || 1000;
+                const unlockedCompanions = result.unlockedCompanions || ['owl'];
+                
+                // Update companion unlock status
+                companions.forEach(companion => {
+                    companion.unlocked = unlockedCompanions.includes(companion.id);
+                });
+
+                // Load current companion from storage
+                chrome.storage.local.get(['currentCompanion'], (result) => {
+                    currentCompanion = result.currentCompanion || companions[0];
+                    updateCompanionDisplay();
+                    updateCoinDisplay();
+                });
             });
         } catch (error) {
             console.error('Error loading companions:', error);
@@ -72,6 +93,8 @@ document.addEventListener('DOMContentLoaded', function() {
             companions = [{
                 id: 'owl',
                 name: 'Owl',
+                price: 0,
+                unlocked: true,
                 sprites: {
                     happy: 'sprites/owl/happy.gif',
                     sad: 'sprites/owl/sad.gif',
@@ -81,12 +104,25 @@ document.addEventListener('DOMContentLoaded', function() {
             }];
             currentCompanion = companions[0];
             updateCompanionDisplay();
+            updateCoinDisplay();
+        }
+    }
+
+    function updateCoinDisplay() {
+        const coinDisplay = document.querySelector('.coin-display');
+        if (coinDisplay) {
+            coinDisplay.innerHTML = `
+                <div class="coin-amount">
+                    <span class="coin-icon">🪙</span>
+                    <span class="coin-value">${userCoins}</span>
+                </div>
+            `;
         }
     }
 
     function initializeCompanionSettings() {
         const companionList = document.querySelector('.companion-list');
-        const previewImage = document.querySelector('.companion-preview img');
+        const previewImage = document.querySelector('.companion-layer img');
         const currentCompanionInfo = document.querySelector('.current-companion');
 
         // Load companions and initialize display
@@ -101,31 +137,67 @@ document.addEventListener('DOMContentLoaded', function() {
             // Populate companion grid
             companions.forEach(companion => {
                 const option = document.createElement('div');
-                option.className = 'companion-option';
+                option.className = `companion-option ${companion.unlocked ? 'unlocked' : 'locked'}`;
                 option.innerHTML = `
                     <div class="companion-preview">
                         <img src="${companion.sprites.happy}" alt="${companion.name}">
+                        ${!companion.unlocked ? '<div class="lock-overlay">🔒</div>' : ''}
                     </div>
                     <div class="companion-info">
                         <div class="companion-name">${companion.name}</div>
                         <div class="companion-status ${currentCompanion?.id === companion.id ? 'selected' : ''}">
-                            ${currentCompanion?.id === companion.id ? '✓ Selected' : 'Click to select'}
+                            ${currentCompanion?.id === companion.id ? '✓ Selected' : 
+                              companion.unlocked ? 'Click to select' : 
+                              `🔒 ${companion.price} coins to unlock`}
                         </div>
                     </div>
                 `;
                 
                 option.addEventListener('click', () => {
-                    currentCompanion = companion;
-                    updateCompanionDisplay();
-                    saveCompanionSettings();
-                    
-                    // Update selection status
-                    document.querySelectorAll('.companion-status').forEach(status => {
-                        status.textContent = 'Click to select';
-                        status.classList.remove('selected');
-                    });
-                    option.querySelector('.companion-status').textContent = '✓ Selected';
-                    option.querySelector('.companion-status').classList.add('selected');
+                    if (!companion.unlocked) {
+                        if (userCoins >= companion.price) {
+                            // Unlock companion
+                            userCoins -= companion.price;
+                            companion.unlocked = true;
+                            
+                            // Save to storage
+                            chrome.storage.local.get(['unlockedCompanions'], (result) => {
+                                const unlockedCompanions = result.unlockedCompanions || ['owl'];
+                                unlockedCompanions.push(companion.id);
+                                chrome.storage.local.set({ 
+                                    unlockedCompanions,
+                                    userCoins
+                                });
+                            });
+                            
+                            // Update display
+                            updateCoinDisplay();
+                            initializeCompanionSettings();
+                        } else {
+                            alert('Not enough coins to unlock this companion!');
+                        }
+                    } else {
+                        // Set as current companion
+                        currentCompanion = companion;
+                        saveCompanionSettings();
+                        
+                        // Update preview image
+                        previewImage.src = companion.sprites.happy;
+                        
+                        // Update selection status
+                        document.querySelectorAll('.companion-status').forEach(status => {
+                            status.textContent = 'Click to select';
+                            status.classList.remove('selected');
+                        });
+                        option.querySelector('.companion-status').textContent = '✓ Selected';
+                        option.querySelector('.companion-status').classList.add('selected');
+                        
+                        // Update companion option styling
+                        document.querySelectorAll('.companion-option').forEach(opt => {
+                            opt.classList.remove('selected');
+                        });
+                        option.classList.add('selected');
+                    }
                 });
                 
                 companionGrid.appendChild(option);
@@ -137,7 +209,11 @@ document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.preview-button').forEach(button => {
                 button.addEventListener('click', () => {
                     const state = button.id.replace('preview-', '');
-                    previewImage.src = currentCompanion.sprites[state];
+                    // Find the currently selected companion
+                    const selectedCompanion = companions.find(c => c.id === currentCompanion.id);
+                    if (selectedCompanion) {
+                        previewImage.src = selectedCompanion.sprites[state];
+                    }
                 });
             });
         });
@@ -295,4 +371,247 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
     }
+
+    // Load playground data
+    function loadPlaygroundData() {
+        chrome.storage.local.get(['userCoins', 'unlockedBackgrounds', 'unlockedMaterials', 'currentBackground', 'placedMaterials'], (result) => {
+            userCoins = result.userCoins || 1000;
+            unlockedBackgrounds = result.unlockedBackgrounds || [];
+            unlockedMaterials = result.unlockedMaterials || [];
+            currentBackground = result.currentBackground || null;
+            placedMaterials = result.placedMaterials || [];
+            
+            updateCoinDisplay();
+            loadBackgrounds();
+            loadMaterials();
+            restorePlayground();
+        });
+    }
+
+    // Load available backgrounds
+    function loadBackgrounds() {
+        const backgrounds = [
+            { id: 'default', name: 'Default', price: 0, image: 'backgrounds/default.jpg' },
+            { id: 'beach', name: 'Beach', price: 50, image: 'backgrounds/beach.jpg' },
+            { id: 'forest', name: 'Forest', price: 75, image: 'backgrounds/forest.jpg' },
+            // Add more backgrounds as needed
+        ];
+
+        const backgroundList = document.querySelector('.background-list');
+        backgroundList.innerHTML = '';
+
+        backgrounds.forEach(bg => {
+            const item = document.createElement('div');
+            item.className = `background-item ${unlockedBackgrounds.includes(bg.id) ? '' : 'locked'}`;
+            item.innerHTML = `
+                <img src="${bg.image}" alt="${bg.name}">
+                <div class="price">${bg.price > 0 ? `${bg.price} coins` : 'Free'}</div>
+            `;
+
+            item.addEventListener('click', () => {
+                if (!unlockedBackgrounds.includes(bg.id)) {
+                    if (userCoins >= bg.price) {
+                        // Unlock background
+                        userCoins -= bg.price;
+                        unlockedBackgrounds.push(bg.id);
+                        chrome.storage.local.set({ 
+                            userCoins,
+                            unlockedBackgrounds
+                        });
+                        updateCoinDisplay();
+                        loadBackgrounds();
+                    } else {
+                        alert('Not enough coins to unlock this background!');
+                    }
+                } else {
+                    // Set as current background
+                    currentBackground = bg;
+                    chrome.storage.local.set({ currentBackground });
+                    updateBackground();
+                }
+            });
+
+            backgroundList.appendChild(item);
+        });
+    }
+
+    // Load available materials
+    function loadMaterials() {
+        const materials = [
+            { id: 'ball', name: 'Ball', price: 25, image: 'materials/ball.png' },
+            { id: 'toy', name: 'Toy', price: 35, image: 'materials/toy.png' },
+            { id: 'pillow', name: 'Pillow', price: 45, image: 'materials/pillow.png' },
+            // Add more materials as needed
+        ];
+
+        const materialsList = document.querySelector('.materials-list');
+        materialsList.innerHTML = '';
+
+        materials.forEach(material => {
+            const item = document.createElement('div');
+            item.className = `material-item ${unlockedMaterials.includes(material.id) ? '' : 'locked'}`;
+            item.innerHTML = `
+                <img src="${material.image}" alt="${material.name}">
+                <div class="price">${material.price} coins</div>
+            `;
+
+            item.addEventListener('click', () => {
+                if (!unlockedMaterials.includes(material.id)) {
+                    if (userCoins >= material.price) {
+                        // Unlock material
+                        userCoins -= material.price;
+                        unlockedMaterials.push(material.id);
+                        chrome.storage.local.set({ 
+                            userCoins,
+                            unlockedMaterials
+                        });
+                        updateCoinDisplay();
+                        loadMaterials();
+                    } else {
+                        alert('Not enough coins to unlock this material!');
+                    }
+                } else {
+                    // Add material to playground
+                    addMaterialToPlayground(material);
+                }
+            });
+
+            materialsList.appendChild(item);
+        });
+    }
+
+    // Add material to playground
+    function addMaterialToPlayground(material) {
+        const materialsLayer = document.querySelector('.materials-layer');
+        const materialElement = document.createElement('div');
+        materialElement.className = 'draggable';
+        materialElement.innerHTML = `<img src="${material.image}" alt="${material.name}">`;
+        
+        // Set initial position
+        materialElement.style.left = '50%';
+        materialElement.style.top = '50%';
+        materialElement.style.transform = 'translate(-50%, -50%)';
+        materialElement.style.width = '100px';
+        materialElement.style.height = '100px';
+
+        // Make draggable
+        makeDraggable(materialElement);
+
+        materialsLayer.appendChild(materialElement);
+        placedMaterials.push({
+            id: material.id,
+            x: 50,
+            y: 50,
+            width: 100,
+            height: 100
+        });
+
+        // Save to storage
+        chrome.storage.local.set({ placedMaterials });
+    }
+
+    // Make element draggable
+    function makeDraggable(element) {
+        let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+        
+        element.onmousedown = dragMouseDown;
+
+        function dragMouseDown(e) {
+            e.preventDefault();
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            document.onmouseup = closeDragElement;
+            document.onmousemove = elementDrag;
+        }
+
+        function elementDrag(e) {
+            e.preventDefault();
+            pos1 = pos3 - e.clientX;
+            pos2 = pos4 - e.clientY;
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+
+            const playground = document.querySelector('.playground');
+            const rect = playground.getBoundingClientRect();
+            
+            // Calculate new position
+            let newTop = element.offsetTop - pos2;
+            let newLeft = element.offsetLeft - pos1;
+            
+            // Constrain to playground bounds
+            newTop = Math.max(0, Math.min(newTop, rect.height - element.offsetHeight));
+            newLeft = Math.max(0, Math.min(newLeft, rect.width - element.offsetWidth));
+            
+            element.style.top = newTop + "px";
+            element.style.left = newLeft + "px";
+
+            // Update stored position
+            const index = Array.from(element.parentNode.children).indexOf(element);
+            if (placedMaterials[index]) {
+                placedMaterials[index].x = (newLeft / rect.width) * 100;
+                placedMaterials[index].y = (newTop / rect.height) * 100;
+                chrome.storage.local.set({ placedMaterials });
+            }
+        }
+
+        function closeDragElement() {
+            document.onmouseup = null;
+            document.onmousemove = null;
+        }
+    }
+
+    // Update background
+    function updateBackground() {
+        const backgroundLayer = document.querySelector('.background-layer');
+        if (currentBackground) {
+            backgroundLayer.style.backgroundImage = `url(${currentBackground.image})`;
+            backgroundLayer.style.backgroundSize = 'cover';
+            backgroundLayer.style.backgroundPosition = 'center';
+        } else {
+            backgroundLayer.style.backgroundImage = 'none';
+        }
+    }
+
+    // Restore playground state
+    function restorePlayground() {
+        updateBackground();
+        
+        const materialsLayer = document.querySelector('.materials-layer');
+        materialsLayer.innerHTML = '';
+
+        placedMaterials.forEach(material => {
+            const materialElement = document.createElement('div');
+            materialElement.className = 'draggable';
+            materialElement.innerHTML = `<img src="materials/${material.id}.png" alt="${material.id}">`;
+            
+            materialElement.style.left = `${material.x}%`;
+            materialElement.style.top = `${material.y}%`;
+            materialElement.style.width = `${material.width}px`;
+            materialElement.style.height = `${material.height}px`;
+            materialElement.style.transform = 'translate(-50%, -50%)';
+
+            makeDraggable(materialElement);
+            materialsLayer.appendChild(materialElement);
+        });
+    }
+
+    // Update the playground layers order
+    function updatePlaygroundLayers() {
+        const playground = document.querySelector('.playground');
+        const backgroundLayer = document.querySelector('.background-layer');
+        const materialsLayer = document.querySelector('.materials-layer');
+        const companionLayer = document.querySelector('.companion-layer');
+
+        // Remove all layers
+        playground.innerHTML = '';
+
+        // Add layers in correct order
+        playground.appendChild(backgroundLayer);  // Bottom layer
+        playground.appendChild(materialsLayer);   // Middle layer
+        playground.appendChild(companionLayer);   // Top layer
+    }
+
+    // Initialize playground when the dashboard loads
+    loadPlaygroundData();
+    updatePlaygroundLayers();
 }); 
