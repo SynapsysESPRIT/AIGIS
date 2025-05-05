@@ -131,8 +131,8 @@ python manage.py runserver
 
 ## 📝 License
 
-Synapsys Children’s Online Protection License (SCOPL) - v1.0
-Copyright (c) 2025 Synapsys™
+SynapsysAI Children’s Online Protection License (SCOPL) - v1.0
+Copyright (c) 2025 SynapsysAI™
 
 Permission is hereby granted to use, copy, and modify this software for non-commercial and educational purposes only, subject to the following conditions:
 
