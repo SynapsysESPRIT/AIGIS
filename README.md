@@ -1,5 +1,7 @@
 # 🔱 Aigis 🔱
+<p align="center">
 ![icon16](https://github.com/user-attachments/assets/bf2df74b-6c91-4801-b2e0-a36ca67c0472)
+</p>
 
 
 ###  Web Extension Protecting children and families from online dangers using AI-powered detection and supervision tools
