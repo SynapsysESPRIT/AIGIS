@@ -128,33 +128,20 @@ python manage.py runserver
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-MIT License
-
+Synapsys Children’s Online Protection License (SCOPL) - v1.0
 Copyright (c) 2025 Synapsys™
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the “Software”), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Permission is hereby granted to use, copy, and modify this software for non-commercial and educational purposes only, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+This software is intended for the protection of children online and may not be used for surveillance, exploitation, or any unethical purposes.
 
-THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+All copies or substantial portions of the software must include this notice.
 
-Note: This project aims to support the protection of children online through
-AI-based tools. It is the responsibility of users to ensure the ethical and
-legal deployment of this software, especially when handling sensitive data.
+Commercial use, resale, or redistribution without prior written permission from Synapsys is strictly prohibited.
+
+The name "Synapsys" and associated branding may not be used without explicit written permission.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. UNDER NO CIRCUMSTANCES SHALL SYNAPSYS OR ITS CONTRIBUTORS BE LIABLE FOR ANY DAMAGE RESULTING FROM THE USE OR MISUSE OF THIS SOFTWARE.
 
 ![ezgif-127d46ce31ce9a](https://github.com/user-attachments/assets/d9ea5a71-6023-4e5d-97f3-f1916aac3c0c)
 
