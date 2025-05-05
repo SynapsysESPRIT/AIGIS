@@ -1,8 +1,7 @@
 # 🔱 Aigis 🔱
-<p align="center">
-  [![Aigis__1_-removebg-preview](https://github.com/user-attachments/assets/4adb7808-d4c6-4e38-a7b8-f3b3d9c10e13)](https://github-production-user-asset-6210df.s3.amazonaws.com/131389390/440231108-4adb7808-d4c6-4e38-a7b8-f3b3d9c10e13.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20250505%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250505T011453Z&X-Amz-Expires=300&X-Amz-Signature=7c0b27b514aafb88c8ef6de58d20b43e5455ee06a6957c599179119ddf8c931b&X-Amz-SignedHeaders=host)
 
-</p>
+
+![Aigis__1_-removebg-preview](https://github.com/user-attachments/assets/b0cd6a8a-d9ee-4752-949b-59c8058e4c2a)
 
 
 ###  Web Extension Protecting children and families from online dangers using AI-powered detection and supervision tools
