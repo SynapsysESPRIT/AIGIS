@@ -142,7 +142,7 @@ All copies or substantial portions of the software must include this notice.
 
 Commercial use, resale, or redistribution without prior written permission from Synapsys is strictly prohibited.
 
-The name "Synapsys" and associated branding may not be used without explicit written permission.
+The name "SynapsysAI" and associated branding may not be used without explicit written permission.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. UNDER NO CIRCUMSTANCES SHALL SYNAPSYS OR ITS CONTRIBUTORS BE LIABLE FOR ANY DAMAGE RESULTING FROM THE USE OR MISUSE OF THIS SOFTWARE.
 
