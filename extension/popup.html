@@ -288,7 +288,7 @@
     <!-- Companion Display -->
     <div class="companion-section">
         <div class="companion-display">
-            <img id="companion-sprite" src="sprites/happy.gif" alt="AIGIS Companion">
+            <img id="companion-sprite" src="sprites/owl/happy.gif" alt="AIGIS Companion">
         </div>
         <div id="pattern-status" class="pattern-status">
             <div class="result good">
@@ -436,6 +436,49 @@
     <button id="processButton" class="button">Process Page</button>
     <button id="downloadButton" class="button download-button" style="display: none;">Download Screenshot</button>
     <div id="status"></div>
+
+    <div class="controls">
+        <a href="dashboard.html" target="_blank" class="dashboard-button">📊 Dashboard</a>
+    </div>
+
+    <div id="dashboard-section" class="dashboard-section" style="display: none;">
+        <div class="dashboard-header">
+            <h2>Daily Report</h2>
+            <div class="dashboard-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Last Updated:</span>
+                    <span id="last-update-time" class="stat-value">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Next Update:</span>
+                    <span id="next-update-time" class="stat-value">-</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-content">
+            <div class="dashboard-group">
+                <h3>Current Status</h3>
+                <div id="current-status" class="dashboard-status">
+                    <!-- Current status will be populated here -->
+                </div>
+            </div>
+
+            <div class="dashboard-group">
+                <h3>Today's Summary</h3>
+                <div id="daily-summary" class="dashboard-summary">
+                    <!-- Daily summary will be populated here -->
+                </div>
+            </div>
+
+            <div class="dashboard-group">
+                <h3>Historical Data</h3>
+                <div id="historical-data" class="dashboard-history">
+                    <!-- Historical data will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="popup.js"></script>
 </body>

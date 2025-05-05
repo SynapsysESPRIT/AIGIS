@@ -147,9 +147,19 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!patternDiv || !companionSprite) return;
 
         try {
-            // Get current pattern from storage
-            chrome.storage.local.get(['currentPattern'], (result) => {
+            // Get current pattern and companion from storage
+            chrome.storage.local.get(['currentPattern', 'currentCompanion'], (result) => {
                 const pattern = result.currentPattern;
+                const companion = result.currentCompanion || {
+                    id: 'owl',
+                    name: 'Owl',
+                    sprites: {
+                        happy: 'sprites/owl/happy.gif',
+                        sad: 'sprites/owl/sad.gif',
+                        sleepy: 'sprites/owl/sleepy.gif',
+                        touched: 'sprites/owl/touched.gif'
+                    }
+                };
                 
                 if (!pattern) {
                     // Initialize with a good pattern
@@ -169,7 +179,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             <span>Starting to track your patterns...</span>
                         </div>
                     `;
-                    companionSprite.src = 'sprites/happy.gif';
+                    companionSprite.src = companion.sprites.happy;
                     return;
                 }
 
@@ -182,15 +192,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (pattern.status === 'good') {
                     message = 'Your browsing patterns are good! 🌟';
                     icon = '🌟';
-                    sprite = 'sprites/happy.gif';
+                    sprite = companion.sprites.happy;
                 } else if (pattern.status === 'bad') {
                     message = '⚠️ Warning: Negative browsing patterns detected ⚠️';
                     icon = '⚠️';
-                    sprite = 'sprites/sad.gif';
+                    sprite = companion.sprites.sad;
                 } else {
                     message = 'Your browsing patterns are stable 📊';
                     icon = '📊';
-                    sprite = 'sprites/sleepy.gif';
+                    sprite = companion.sprites.sleepy;
                 }
 
                 patternDiv.innerHTML = `
@@ -801,22 +811,190 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Handle companion click
-    const companionSprite = document.getElementById('companion-sprite');
-    if (companionSprite) {
-        companionSprite.addEventListener('click', function() {
-            // Store the current sprite
-            const currentSprite = this.src;
-            
-            // Change to touched sprite
-            this.src = 'sprites/touched.gif';
-            
-            // Change back after 1 second
-            setTimeout(() => {
-                this.src = currentSprite;
-            }, 1000);
+    // Handle companion changes
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        if (message.type === 'companion_changed') {
+            updateCompanionSprite(message.companion);
+        }
+    });
+
+    function updateCompanionSprite(companion) {
+        const companionSprite = document.getElementById('companion-sprite');
+        if (companionSprite) {
+            // Get current pattern status
+            chrome.storage.local.get(['currentPattern'], (result) => {
+                const pattern = result.currentPattern;
+                let spriteState = 'happy';
+                
+                if (pattern) {
+                    if (pattern.doomscrollingRate > 0.5 || pattern.violenceRate > 0.5) {
+                        spriteState = 'sad';
+                    } else if (pattern.doomscrollingRate < 0.2 && pattern.violenceRate < 0.2) {
+                        spriteState = 'sleepy';
+                    }
+                }
+                
+                companionSprite.src = companion.sprites[spriteState];
+            });
+        }
+    }
+
+    // Initialize companion sprite
+    chrome.storage.local.get(['currentCompanion'], (result) => {
+        const companion = result.currentCompanion || {
+            sprites: {
+                happy: 'sprites/owl/happy.gif',
+                sad: 'sprites/owl/sad.gif',
+                sleepy: 'sprites/owl/sleepy.gif',
+                touched: 'sprites/owl/touched.gif'
+            }
+        };
+        updateCompanionSprite(companion);
+    });
+
+    // Dashboard functionality
+    let dashboardData = {
+        lastUpdate: null,
+        currentStatus: null,
+        dailySummary: {
+            totalViolence: 0,
+            totalDoomscroll: 0,
+            totalTime: 0,
+            statusChanges: []
+        },
+        historicalData: []
+    };
+
+    // Initialize dashboard
+    function initDashboard() {
+        const dashboardToggle = document.getElementById('dashboard-toggle');
+        const dashboardSection = document.getElementById('dashboard-section');
+
+        dashboardToggle.addEventListener('click', () => {
+            dashboardSection.style.display = dashboardSection.style.display === 'none' ? 'block' : 'none';
+            if (dashboardSection.style.display === 'block') {
+                updateDashboard();
+            }
+        });
+
+        // Load saved dashboard data
+        chrome.storage.local.get(['dashboardData'], (result) => {
+            if (result.dashboardData) {
+                dashboardData = result.dashboardData;
+            }
+        });
+
+        // Update dashboard every hour
+        setInterval(updateDashboard, 3600000);
+    }
+
+    // Update dashboard data
+    function updateDashboard() {
+        const now = new Date();
+        const lastUpdate = document.getElementById('last-update-time');
+        const nextUpdate = document.getElementById('next-update-time');
+        const currentStatus = document.getElementById('current-status');
+        const dailySummary = document.getElementById('daily-summary');
+        const historicalData = document.getElementById('historical-data');
+
+        // Update timestamps
+        lastUpdate.textContent = now.toLocaleTimeString();
+        nextUpdate.textContent = new Date(now.getTime() + 3600000).toLocaleTimeString();
+
+        // Get current pattern
+        chrome.storage.local.get(['currentPattern'], (result) => {
+            const pattern = result.currentPattern;
+            if (pattern) {
+                // Update current status
+                currentStatus.innerHTML = `
+                    <div class="result ${pattern.status}">
+                        <span class="result-icon">${pattern.status === 'good' ? '🌟' : pattern.status === 'bad' ? '⚠️' : '📊'}</span>
+                        <span>${pattern.status === 'good' ? 'Good browsing patterns' : 
+                                pattern.status === 'bad' ? 'Negative patterns detected' : 
+                                'Stable browsing patterns'}</span>
+                        <div class="pattern-metrics">
+                            <div>Doomscroll Rate: ${pattern.doomscrollRate.toFixed(2)}/min</div>
+                            <div>Violence Rate: ${pattern.violenceRate.toFixed(2)}/min</div>
+                        </div>
+                    </div>
+                `;
+
+                // Update daily summary
+                dashboardData.dailySummary.totalViolence += pattern.violenceRate;
+                dashboardData.dailySummary.totalDoomscroll += pattern.doomscrollRate;
+                dashboardData.dailySummary.totalTime += 1;
+                dashboardData.dailySummary.statusChanges.push({
+                    time: now,
+                    status: pattern.status
+                });
+
+                dailySummary.innerHTML = `
+                    <div class="stat-item">
+                        <span class="stat-label">Total Violence Incidents:</span>
+                        <span class="stat-value">${dashboardData.dailySummary.totalViolence.toFixed(2)}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Total Doomscroll Time:</span>
+                        <span class="stat-value">${dashboardData.dailySummary.totalDoomscroll.toFixed(2)} minutes</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Total Monitoring Time:</span>
+                        <span class="stat-value">${dashboardData.dailySummary.totalTime} hours</span>
+                    </div>
+                `;
+
+                // Update historical data
+                dashboardData.historicalData.push({
+                    time: now,
+                    pattern: pattern
+                });
+
+                // Keep only last 24 hours of data
+                const oneDayAgo = new Date(now.getTime() - 24 * 3600000);
+                dashboardData.historicalData = dashboardData.historicalData.filter(item => 
+                    new Date(item.time) > oneDayAgo
+                );
+
+                // Display historical data
+                historicalData.innerHTML = dashboardData.historicalData.map(item => `
+                    <div class="history-item">
+                        <div class="history-time">${new Date(item.time).toLocaleTimeString()}</div>
+                        <div class="history-status">
+                            <span class="result-icon">${item.pattern.status === 'good' ? '🌟' : 
+                                                    item.pattern.status === 'bad' ? '⚠️' : '📊'}</span>
+                            <span>${item.pattern.status === 'good' ? 'Good' : 
+                                    item.pattern.status === 'bad' ? 'Bad' : 'Stable'}</span>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Save updated dashboard data
+                chrome.storage.local.set({ dashboardData });
+            }
         });
     }
+
+    // Initialize dashboard button
+    function initDashboardButton() {
+        const dashboardToggle = document.getElementById('dashboard-toggle');
+        if (dashboardToggle) {
+            dashboardToggle.addEventListener('click', () => {
+                console.log('Opening dashboard...');
+                chrome.tabs.create({ 
+                    url: chrome.runtime.getURL('dashboard.html'),
+                    active: true 
+                });
+            });
+        }
+    }
+
+    // Initialize when popup loads
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('Popup loaded, initializing...');
+        initDashboardButton();
+        initDashboard();
+        // ... rest of your existing initialization code ...
+    });
 });
 
 // Function to be executed in the content script context

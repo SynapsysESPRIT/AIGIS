@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>AIGIS Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <div class="header-content">
+                <h1>🤖 AIGIS Dashboard</h1>
+                <div class="header-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Last Updated:</span>
+                        <span id="last-update-time" class="stat-value">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Next Update:</span>
+                        <span id="next-update-time" class="stat-value">-</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="dashboard-content">
+            <section class="dashboard-section">
+                <h2>Companion Settings</h2>
+                <div class="companion-settings">
+                    <div class="companion-preview">
+                        <img id="preview-sprite" src="sprites/happy.gif" alt="Companion Preview">
+                        <div class="preview-controls">
+                            <button id="preview-happy" class="preview-button">Happy</button>
+                            <button id="preview-sad" class="preview-button">Sad</button>
+                            <button id="preview-sleepy" class="preview-button">Sleepy</button>
+                        </div>
+                    </div>
+                    <div class="companion-selection">
+                        <h3>Select Companion</h3>
+                        <div id="companion-list" class="companion-list">
+                            <!-- Companion options will be populated here -->
+                        </div>
+                        <div class="companion-info">
+                            <h4>Current Companion</h4>
+                            <div id="current-companion" class="current-companion">
+                                <span class="companion-name">Default Companion</span>
+                                <div class="companion-sprites">
+                                    <div class="sprite-item">
+                                        <span>Happy:</span>
+                                        <span class="sprite-path">sprites/happy.gif</span>
+                                    </div>
+                                    <div class="sprite-item">
+                                        <span>Sad:</span>
+                                        <span class="sprite-path">sprites/sad.gif</span>
+                                    </div>
+                                    <div class="sprite-item">
+                                        <span>Sleepy:</span>
+                                        <span class="sprite-path">sprites/sleepy.gif</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="dashboard-section">
+                <h2>Current Status</h2>
+                <div id="current-status" class="status-card">
+                    <!-- Current status will be populated here -->
+                </div>
+            </section>
+
+            <section class="dashboard-section">
+                <h2>Today's Summary</h2>
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <h3>Violence Detection</h3>
+                        <div class="stat-item">
+                            <span class="stat-label">Total Incidents:</span>
+                            <span id="total-violence" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Average Rate:</span>
+                            <span id="avg-violence-rate" class="stat-value">0/min</span>
+                        </div>
+                    </div>
+
+                    <div class="summary-card">
+                        <h3>Doomscrolling</h3>
+                        <div class="stat-item">
+                            <span class="stat-label">Total Time:</span>
+                            <span id="total-doomscroll" class="stat-value">0 min</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Average Rate:</span>
+                            <span id="avg-doomscroll-rate" class="stat-value">0/min</span>
+                        </div>
+                    </div>
+
+                    <div class="summary-card">
+                        <h3>Monitoring</h3>
+                        <div class="stat-item">
+                            <span class="stat-label">Total Time:</span>
+                            <span id="total-monitoring" class="stat-value">0 hours</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Status Changes:</span>
+                            <span id="status-changes" class="stat-value">0</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="dashboard-section">
+                <h2>Historical Data</h2>
+                <div class="history-controls">
+                    <select id="time-range">
+                        <option value="24">Last 24 Hours</option>
+                        <option value="7">Last 7 Days</option>
+                        <option value="30">Last 30 Days</option>
+                    </select>
+                    <button id="export-data" class="export-button">Export Data</button>
+                </div>
+                <div id="historical-data" class="history-chart">
+                    <!-- Historical data will be populated here -->
+                </div>
+            </section>
+
+            <section class="dashboard-section">
+                <h2>Detailed Timeline</h2>
+                <div id="timeline" class="timeline">
+                    <!-- Timeline will be populated here -->
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="dashboard.js"></script>
+</body>
+</html> 

@@ -185,3 +185,126 @@
 .pattern-status {
     margin-top: 8px;
 }
+
+/* Dashboard Styles */
+.dashboard-button {
+    background-color: #4a90e2;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    margin: 8px 0;
+    width: 100%;
+    transition: background-color 0.2s;
+}
+
+.dashboard-button:hover {
+    background-color: #357abd;
+}
+
+.dashboard-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 12px;
+}
+
+.dashboard-header {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.dashboard-header h2 {
+    color: #1a1a1a;
+    font-size: 18px;
+    margin: 0 0 8px 0;
+}
+
+.dashboard-stats {
+    display: flex;
+    gap: 16px;
+}
+
+.dashboard-group {
+    background: white;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.dashboard-group h3 {
+    color: #1a1a1a;
+    font-size: 14px;
+    margin: 0 0 8px 0;
+}
+
+.dashboard-status,
+.dashboard-summary,
+.dashboard-history {
+    color: #1a1a1a;
+    font-size: 13px;
+}
+
+.dashboard-status .result,
+.dashboard-summary .result,
+.dashboard-history .result {
+    margin: 4px 0;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.dashboard-status .result.safe {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.dashboard-status .result.warning {
+    background-color: #fff3e0;
+    color: #f57c00;
+}
+
+.dashboard-status .result.danger {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.dashboard-summary .stat-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.dashboard-summary .stat-item:last-child {
+    border-bottom: none;
+}
+
+.dashboard-history {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.dashboard-history .history-item {
+    padding: 8px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.dashboard-history .history-item:last-child {
+    border-bottom: none;
+}
+
+.dashboard-history .history-time {
+    color: #666;
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.dashboard-history .history-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}

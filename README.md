@@ -1,9 +1,13 @@
+<<<<<<< Updated upstream
 <h1 align="center">🔱 Aigis 🔱</h1>
 
 
 
 ![Aigis__1_-removebg-preview](https://github.com/user-attachments/assets/b0cd6a8a-d9ee-4752-949b-59c8058e4c2a)
 
+=======
+# 🔱 Aigis 🔱
+>>>>>>> Stashed changes
 
 ###  Web Extension Protecting children and families from online dangers using AI-powered detection and supervision tools
 
