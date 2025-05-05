@@ -1,6 +1,7 @@
 # 🔱 Aigis 🔱
 <p align="center">
-![icon16](https://github.com/user-attachments/assets/bf2df74b-6c91-4801-b2e0-a36ca67c0472)
+  ![Aigis__1_-removebg-preview](https://github.com/user-attachments/assets/00442053-7dff-4920-aeb9-8f5477a98780)
+
 </p>
 
 
