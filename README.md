@@ -1,5 +1,5 @@
-  <img src="https://raw.githubusercontent.com/SynapsysESPRIT/AIGIS/main/extension/icons/icon16.png" width="100" alt="AIGIS Icon">
-# Aigis 
+<h1 align="center">🔱 Aigis 🔱</h1>
+
 
 
 ![Aigis__1_-removebg-preview](https://github.com/user-attachments/assets/b0cd6a8a-d9ee-4752-949b-59c8058e4c2a)
