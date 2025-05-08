@@ -20,16 +20,25 @@ pydub==0.25.1
 tensorflow==2.18.0
 
 # Transformers & RAG
-transformers==4.35.2
-huggingface-hub==0.20.3
+transformers
+huggingface-hub
 sentence-transformers
 faiss-cpu
 accelerate
 pypdf
-langchain==0.1.14
-langchain-community==0.0.30
+langchain==0.3.25
+langchain-community==0.3.23
+langchain-groq>=0.3.2
+langchain-huggingface==0.1.0
 
 # Development Tools
 python-dotenv==1.0.0
 ipywidgets
 jupyterlab
+
+# Additional Libraries
+bitsandbytes>=0.39.1
+streamlit>=1.25.0
+PyPDF2
+datasets>=2.14.5
+tokenizers
