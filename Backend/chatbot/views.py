@@ -55,7 +55,7 @@ class ChildSafetyAssistant:
           temperature=0.7,
           max_tokens=512,
           top_p=0.95,
-          groq_api_key="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"
+          groq_api_key=os.environ.get("GROQ_API_KEY"),
       )
 
       print("Mom Assistant model connected via Groq!")

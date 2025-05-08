@@ -107,6 +107,7 @@ pip install -r requirements.txt
 **Important:** After activating your environment, set your Hugging Face token:
 ```bash
 export HUGGINGFACE_TOKEN=your_token_here  # On Windows: set HUGGINGFACE_TOKEN=your_token_here
+export GROQAPI_KEY=your_key_here  # On Windows: set GROQAPI_KEY=your_key_here
 ```
 
 ### 3. Run the Backend Server
