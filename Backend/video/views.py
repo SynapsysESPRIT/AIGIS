@@ -17,7 +17,11 @@ import cv2
 from .models import DeepfakeDetection
 from tensorflow.keras.applications.xception import preprocess_input
 from collections import deque
-from .epilepsy_analyzer import EpilepsyAnalyzer
+from .epilepsy_detector import EpilepsyDetector, DetectionConfig
+import logging
+import time
+
+logger = logging.getLogger(__name__)
 
 # Load your trained brainrot model (only once)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -57,8 +61,14 @@ MIN_CONFIDENCE_FOR_DEEPFAKE = 0.60
 MAX_CONFIDENCE_FOR_REAL = 0.50
 confidence_history = deque(maxlen=CONFIDENCE_HISTORY_SIZE)
 
-# Initialize the analyzer (add with other initializations)
-epilepsy_analyzer = EpilepsyAnalyzer()
+# Initialize the epilepsy detector
+epilepsy_detector = EpilepsyDetector(DetectionConfig(
+    frame_rate=30,
+    freq_min=3.0,
+    freq_max=30.0,
+    threshold=1e5,
+    batch_size=30
+))
 
 def get_face_region(image):
     try:
@@ -291,104 +301,94 @@ def get_deepfake_count(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def detect_epilepsy(request):
-    if request.method == 'POST':
-        try:
-            print("[Epilepsy] Received request")
-            print("[Epilepsy] Request headers:", dict(request.headers))
-            
-            # Check content type
-            content_type = request.headers.get('Content-Type', '')
-            if 'application/json' not in content_type:
-                print(f"[Epilepsy] Invalid content type: {content_type}")
-                return JsonResponse({
-                    'error': f'Invalid content type: {content_type}. Expected application/json',
-                    'status': 'error'
-                }, status=400)
-            
-            # Parse request body
-            try:
-                data = json.loads(request.body)
-                print("[Epilepsy] Request body parsed successfully")
-            except json.JSONDecodeError as e:
-                print(f"[Epilepsy] JSON decode error: {str(e)}")
-                return JsonResponse({
-                    'error': f'Invalid JSON data: {str(e)}',
-                    'status': 'error'
-                }, status=400)
-            
-            # Check for image data
-            image_data = data.get('image')
-            if not image_data:
-                print("[Epilepsy] No image data provided")
-                return JsonResponse({
-                    'error': 'No image data provided',
-                    'status': 'error'
-                }, status=400)
-            
-            # Validate image data format
-            if not isinstance(image_data, str):
-                print(f"[Epilepsy] Invalid image data type: {type(image_data)}")
-                return JsonResponse({
-                    'error': f'Invalid image data type: {type(image_data)}. Expected string',
-                    'status': 'error'
-                }, status=400)
-            
-            if not image_data.startswith('data:image/'):
-                print("[Epilepsy] Invalid image data format")
-                return JsonResponse({
-                    'error': 'Invalid image data format. Expected base64 encoded image',
-                    'status': 'error'
-                }, status=400)
-
-            try:
-                # Process the frame
-                print(f"[Epilepsy] Processing frame, current frame count: {len(epilepsy_analyzer.brightness_list)}")
-                
-                # Analyze the frame
-                is_trigger, result = epilepsy_analyzer.add_frame(image_data)
-                
-                # If result is a string, it means we're still collecting frames
-                if isinstance(result, str):
-                    print(f"[Epilepsy] Still collecting frames: {result}")
-                    return JsonResponse({
-                        'is_epilepsy_trigger': False,
-                        'result': result,
-                        'status': 'collecting',
-                        'frame_count': len(epilepsy_analyzer.brightness_list)
-                    })
-                
-                # Otherwise, we have a full analysis result
-                print(f"[Epilepsy] Analysis complete: {result}")
-                return JsonResponse({
-                    'is_epilepsy_trigger': is_trigger,
-                    'result': result['status'],
-                    'confidence': result['confidence'],
-                    'energy': result['energy'],
-                    'threshold': result['threshold'],
-                    'status': 'analyzed',
-                    'frame_count': result['frame_count']
-                })
-
-            except Exception as e:
-                print(f"[Epilepsy] Image processing error: {str(e)}")
-                import traceback
-                print(f"[Epilepsy] Traceback: {traceback.format_exc()}")
-                return JsonResponse({
-                    'error': f'Image processing error: {str(e)}',
-                    'status': 'error',
-                    'frame_count': len(epilepsy_analyzer.brightness_list)
-                }, status=400)
-
-        except Exception as e:
-            print(f"[Epilepsy] Server error: {str(e)}")
-            import traceback
-            print(f"[Epilepsy] Traceback: {traceback.format_exc()}")
+    """
+    Analyze video frames for flashing lights by detecting rapid brightness changes.
+    """
+    try:
+        # Parse request body
+        data = json.loads(request.body)
+        if 'image' not in data:
             return JsonResponse({
-                'error': f'Server error: {str(e)}',
-                'status': 'error'
-            }, status=500)
-
-    return JsonResponse({
-        'error': 'Invalid request method',
-        'status': 'error'
-    }, status=400)
+                'error': 'No image data provided'
+            }, status=400)
+            
+        # Decode base64 image
+        try:
+            image_data = data['image']
+            if ',' in image_data:
+                image_data = image_data.split(',')[1]
+            image_bytes = base64.b64decode(image_data)
+            img = Image.open(io.BytesIO(image_bytes))
+            frame = np.array(img)
+        except Exception as e:
+            logger.error(f"Error decoding image: {str(e)}")
+            return JsonResponse({
+                'error': f'Invalid image data: {str(e)}'
+            }, status=400)
+            
+        # Convert to grayscale if needed
+        if len(frame.shape) == 3:
+            gray = np.mean(frame, axis=2)
+        else:
+            gray = frame
+            
+        # Calculate brightness
+        brightness = float(np.mean(gray))
+        
+        # Store brightness value
+        if not hasattr(detect_epilepsy, 'brightness_list'):
+            detect_epilepsy.brightness_list = []
+            detect_epilepsy.last_brightness = None
+            detect_epilepsy.flash_count = 0
+            detect_epilepsy.last_flash_time = 0
+        
+        # Calculate brightness change
+        if detect_epilepsy.last_brightness is not None:
+            brightness_change = abs(brightness - detect_epilepsy.last_brightness)
+            
+            # Detect flash (significant brightness change)
+            if brightness_change > 50:  # Threshold for flash detection
+                current_time = time.time()
+                # Only count flashes that are at least 100ms apart
+                if current_time - detect_epilepsy.last_flash_time > 0.1:
+                    detect_epilepsy.flash_count += 1
+                    detect_epilepsy.last_flash_time = current_time
+                    
+                    # If we detect 3 or more flashes in 1 second, consider it dangerous
+                    if detect_epilepsy.flash_count >= 3:
+                        detect_epilepsy.flash_count = 0  # Reset counter
+                        return JsonResponse({
+                            'is_epilepsy_trigger': True,
+                            'result': 'Flashing Lights Detected',
+                            'confidence': 1.0,
+                            'brightness_change': float(brightness_change),
+                            'frame_count': len(detect_epilepsy.brightness_list),
+                            'status': 'analyzed'
+                        })
+        
+        detect_epilepsy.last_brightness = brightness
+        detect_epilepsy.brightness_list.append(brightness)
+        
+        # Keep only last 30 frames
+        if len(detect_epilepsy.brightness_list) > 30:
+            detect_epilepsy.brightness_list = detect_epilepsy.brightness_list[-30:]
+        
+        # Return collecting status
+        return JsonResponse({
+            'is_epilepsy_trigger': False,
+            'result': f'Monitoring ({len(detect_epilepsy.brightness_list)} frames)',
+            'confidence': 0.0,
+            'brightness_change': float(brightness_change) if detect_epilepsy.last_brightness is not None else 0.0,
+            'frame_count': len(detect_epilepsy.brightness_list),
+            'status': 'collecting'
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error in detect_epilepsy: {str(e)}")
+        return JsonResponse({
+            'error': f'Server error: {str(e)}'
+        }, status=500)
