@@ -162,11 +162,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 };
                 
                 if (!pattern) {
-                    // Initialize with a good pattern
+                    // Initialize with a normal pattern
                     const initialPattern = {
-                        doomscrollRate: 0,
-                        violenceRate: 0,
-                        status: 'good',
+                        scrollFrequency: 0,
+                        averageScrollSpeed: 0,
+                        engagementDuration: 0,
+                        behavior: 'normal',
+                        sprite: 'happy',
                         timestamp: Date.now()
                     };
                     
@@ -185,36 +187,56 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 console.log('Current pattern:', pattern);
 
+                // Update metrics display
+                document.getElementById('scroll-frequency').textContent = 
+                    `${pattern.scrollFrequency.toFixed(1)}/min`;
+                document.getElementById('scroll-speed').textContent = 
+                    `${pattern.averageScrollSpeed.toFixed(0)} px/s`;
+                document.getElementById('engagement-duration').textContent = 
+                    `${(pattern.engagementDuration / 1000).toFixed(0)}s`;
+                document.getElementById('behavior-pattern').textContent = 
+                    pattern.behavior.charAt(0).toUpperCase() + pattern.behavior.slice(1);
+
                 let message = '';
                 let icon = '';
-                let sprite = '';
+                let resultClass = '';
 
-                if (pattern.status === 'good') {
-                    message = 'Your browsing patterns are good! 🌟';
-                    icon = '🌟';
-                    sprite = companion.sprites.happy;
-                } else if (pattern.status === 'bad') {
-                    message = '⚠️ Warning: Negative browsing patterns detected ⚠️';
-                    icon = '⚠️';
-                    sprite = companion.sprites.sad;
-                } else {
-                    message = 'Your browsing patterns are stable 📊';
-                    icon = '📊';
-                    sprite = companion.sprites.sleepy;
+                switch (pattern.behavior) {
+                    case 'focused':
+                        message = 'You\'re focused and engaged! 🌟';
+                        icon = '🌟';
+                        resultClass = 'good';
+                        break;
+                    case 'distracted':
+                        message = 'You seem a bit distracted. Try focusing on one thing at a time.';
+                        icon = '⚠️';
+                        resultClass = 'warning';
+                        break;
+                    case 'restless':
+                        message = 'You\'re scrolling quite rapidly. Maybe take a short break?';
+                        icon = '⚡';
+                        resultClass = 'warning';
+                        break;
+                    case 'binge':
+                        message = 'You\'ve been consuming content for a while. Consider taking a break.';
+                        icon = '😴';
+                        resultClass = 'warning';
+                        break;
+                    default:
+                        message = 'Your browsing patterns are normal.';
+                        icon = '📊';
+                        resultClass = 'good';
                 }
 
                 patternDiv.innerHTML = `
-                    <div class="result ${pattern.status}">
+                    <div class="result ${resultClass}">
                         <span class="result-icon">${icon}</span>
                         <span>${message}</span>
-                        <div class="pattern-metrics">
-                            <div>Doomscroll Rate: ${pattern.doomscrollRate.toFixed(2)}/min</div>
-                            <div>Violence Rate: ${pattern.violenceRate.toFixed(2)}/min</div>
-                        </div>
                     </div>
                 `;
 
-                companionSprite.src = sprite;
+                // Update companion sprite
+                companionSprite.src = companion.sprites[pattern.sprite];
             });
         } catch (error) {
             console.error('Error updating pattern status:', error);
