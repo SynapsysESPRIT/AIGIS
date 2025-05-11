@@ -8,4 +8,5 @@ urlpatterns = [
     path('violence-analyze/', views.analyze_video, name='violence_analyze'),
     path('deepfake/', views.detect_deepfake, name='deepfake'),
     path('deepfake-count/', views.get_deepfake_count, name='deepfake_count'),
+    path('epilepsy/', views.detect_epilepsy, name='epilepsy'),
 ] 

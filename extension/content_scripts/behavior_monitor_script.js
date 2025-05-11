@@ -1,26 +1,24 @@
 // Behavior monitoring thresholds
-const SCROLL_SPEED_THRESHOLD = 500; // pixels per second
-const SCROLL_DURATION_THRESHOLD = 2000; // 2 seconds in milliseconds
-const PAGE_TIME_THRESHOLD = 60000; // 1 minute in milliseconds
-const INTERACTION_THRESHOLD = 30000; // 30 seconds without interaction
-const REEL_COUNT_THRESHOLD = 3; // Number of reels to trigger warning
-const WARNING_COOLDOWN = 30000; // 30 seconds cooldown between warnings
+const SCROLL_FREQUENCY_THRESHOLD = 10; // scrolls per minute
+const SCROLL_SPEED_THRESHOLD = 3000; // pixels per second for distracted state
+const ENGAGEMENT_THRESHOLD = 30000; // 30 seconds minimum engagement
+const PATTERN_UPDATE_INTERVAL = 30000; // 30 seconds
 
 // State tracking
-let lastScrollTime = 0;
-let scrollStartTime = 0;
-let pageStartTime = Date.now();
-let lastInteractionTime = Date.now();
-let isScrolling = false;
-let scrollDistance = 0;
-let lastWarningTime = 0;
-let reelCount = 0;
+let scrollEvents = [];
+let engagementSessions = [];
+let currentEngagement = {
+    startTime: Date.now(),
+    type: 'page',
+    content: null
+};
 
 // Track pattern metrics
 let patternMetrics = {
-    doomscrollCount: 0,
-    violenceCount: 0,
-    startTime: Date.now()
+    scrollFrequency: 0,
+    averageScrollSpeed: 0,
+    engagementDuration: 0,
+    lastUpdate: Date.now()
 };
 
 console.log('Behavior monitoring initialized');
@@ -28,57 +26,61 @@ console.log('Behavior monitoring initialized');
 // Track scrolling behavior
 window.addEventListener('scroll', () => {
     const currentTime = Date.now();
-    const timeSinceLastScroll = currentTime - lastScrollTime;
-    const scrollSpeed = timeSinceLastScroll > 10 ? 
-        Math.abs(window.scrollY - scrollDistance) / (timeSinceLastScroll / 1000) : 0;
+    const scrollEvent = {
+        timestamp: currentTime,
+        position: window.scrollY
+    };
     
-    if (scrollSpeed > SCROLL_SPEED_THRESHOLD) {
-        if (!isScrolling) {
-            scrollStartTime = currentTime;
-            isScrolling = true;
-        }
+    scrollEvents.push(scrollEvent);
+    
+    // Keep only last 5 minutes of scroll events
+    const fiveMinutesAgo = currentTime - 300000;
+    scrollEvents = scrollEvents.filter(event => event.timestamp > fiveMinutesAgo);
+    
+    // Calculate scroll speed
+    if (scrollEvents.length > 1) {
+        const lastEvent = scrollEvents[scrollEvents.length - 2];
+        const timeDiff = currentTime - lastEvent.timestamp;
+        const distance = Math.abs(scrollEvent.position - lastEvent.position);
+        const speed = timeDiff > 0 ? distance / (timeDiff / 1000) : 0;
         
-        if (currentTime - scrollStartTime > SCROLL_DURATION_THRESHOLD) {
-            triggerWarning('rapid_scrolling');
-            isScrolling = false;
+        if (speed > SCROLL_SPEED_THRESHOLD) {
+            updatePattern('rapid_scrolling');
         }
-    } else {
-        isScrolling = false;
     }
-    
-    lastScrollTime = currentTime;
-    scrollDistance = window.scrollY;
 });
 
-// Track user interactions
-['click', 'keydown', 'mousedown', 'touchstart'].forEach(eventType => {
-    document.addEventListener(eventType, () => {
-        lastInteractionTime = Date.now();
-    });
-});
-
-// Monitor time spent on page
-setInterval(() => {
+// Track engagement with content
+function trackEngagement(type, content) {
     const currentTime = Date.now();
-    const timeOnPage = currentTime - pageStartTime;
-    const timeSinceLastInteraction = currentTime - lastInteractionTime;
     
-    if (timeOnPage > PAGE_TIME_THRESHOLD && timeSinceLastInteraction > INTERACTION_THRESHOLD) {
-        triggerWarning('passive_consumption');
+    // End current engagement if type changed
+    if (currentEngagement.type !== type) {
+        if (currentTime - currentEngagement.startTime >= ENGAGEMENT_THRESHOLD) {
+            engagementSessions.push({
+                type: currentEngagement.type,
+                content: currentEngagement.content,
+                duration: currentTime - currentEngagement.startTime
+            });
+        }
+        currentEngagement = {
+            startTime: currentTime,
+            type: type,
+            content: content
+        };
     }
-}, 10000);
+}
 
 // Monitor for reels/shorts
 const reelObserver = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
         if (mutation.addedNodes.length) {
             const reels = document.querySelectorAll('video[src*="reel"], video[src*="short"], [data-testid*="reel"], [data-testid*="short"]');
-            if (reels.length > reelCount) {
-                reelCount = reels.length;
-                if (reelCount >= REEL_COUNT_THRESHOLD) {
-                    triggerWarning('reel_binge');
+            reels.forEach(reel => {
+                if (reel.paused === false) {
+                    trackEngagement('reel', reel.src);
                 }
-            }
+            });
         }
     });
 });
@@ -88,58 +90,152 @@ reelObserver.observe(document.body, {
     subtree: true
 });
 
-// Function to trigger warnings
-function triggerWarning(type) {
-    const currentTime = Date.now();
-    if (currentTime - lastWarningTime < WARNING_COOLDOWN) {
-        return;
-    }
-    
-    // Update pattern metrics
-    patternMetrics.doomscrollCount++;
-    console.log('Updated doomscroll count:', patternMetrics.doomscrollCount);
-    
-    // Send warning to background script
-    chrome.runtime.sendMessage({
-        type: 'behavior_warning',
-        data: {
-            type: type,
-            message: getWarningMessage(type),
-            timestamp: currentTime
-        }
+// Track user interactions
+['click', 'keydown', 'mousedown', 'touchstart'].forEach(eventType => {
+    document.addEventListener(eventType, () => {
+        trackEngagement('interaction', eventType);
     });
-    
-    lastWarningTime = currentTime;
-}
-
-// Get appropriate warning message
-function getWarningMessage(type) {
-    switch (type) {
-        case 'rapid_scrolling':
-            return 'You\'ve been scrolling rapidly. Consider taking a break.';
-        case 'passive_consumption':
-            return 'You\'ve been passively consuming content for a while. Try engaging with the content or taking a break.';
-        case 'reel_binge':
-            return `You've watched ${reelCount} reels/shorts. Consider taking a break.`;
-        default:
-            return 'Unusual browsing pattern detected. Consider taking a break.';
-    }
-}
-
-// Listen for violence detection
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'violenceResult' && message.data.is_violent) {
-        patternMetrics.violenceCount++;
-        console.log('Updated violence count:', patternMetrics.violenceCount);
-    }
 });
 
-// Reset metrics every 5 minutes
-setInterval(() => {
-    patternMetrics = {
-        doomscrollCount: 0,
-        violenceCount: 0,
-        startTime: Date.now()
+// Calculate pattern metrics
+function calculatePatternMetrics() {
+    const currentTime = Date.now();
+    const timeWindow = currentTime - patternMetrics.lastUpdate;
+    
+    // Calculate scroll frequency (scrolls per minute)
+    const recentScrolls = scrollEvents.filter(event => 
+        event.timestamp > currentTime - timeWindow
+    );
+    const scrollFrequency = (recentScrolls.length / timeWindow) * 60000;
+    
+    // Calculate average scroll speed
+    let totalSpeed = 0;
+    let speedCount = 0;
+    for (let i = 1; i < recentScrolls.length; i++) {
+        const timeDiff = recentScrolls[i].timestamp - recentScrolls[i-1].timestamp;
+        const distance = Math.abs(recentScrolls[i].position - recentScrolls[i-1].position);
+        if (timeDiff > 0) {
+            totalSpeed += distance / (timeDiff / 1000);
+            speedCount++;
+        }
+    }
+    const averageScrollSpeed = speedCount > 0 ? totalSpeed / speedCount : 0;
+    
+    // Calculate average engagement duration
+    const recentEngagements = engagementSessions.filter(session => 
+        session.duration > 0 && session.timestamp > currentTime - timeWindow
+    );
+    
+    // Add current engagement if it exists
+    let totalEngagement = 0;
+    if (currentEngagement && currentEngagement.startTime) {
+        const currentDuration = currentTime - currentEngagement.startTime;
+        if (currentDuration >= ENGAGEMENT_THRESHOLD) {
+            totalEngagement += currentDuration;
+        }
+    }
+    
+    // Add completed engagements
+    totalEngagement += recentEngagements.reduce((sum, session) => sum + session.duration, 0);
+    
+    // Calculate average engagement duration
+    const engagementCount = recentEngagements.length + (currentEngagement && currentEngagement.startTime ? 1 : 0);
+    const averageEngagement = engagementCount > 0 ? totalEngagement / engagementCount : 0;
+    
+    return {
+        scrollFrequency,
+        averageScrollSpeed,
+        engagementDuration: averageEngagement,
+        timestamp: currentTime
     };
-    console.log('Pattern metrics reset');
-}, 300000); 
+}
+
+// Determine behavior pattern
+function determineBehaviorPattern(metrics) {
+    const { scrollFrequency, averageScrollSpeed, engagementDuration } = metrics;
+    
+    // Distracted/Bored: Very high scroll speed
+    if (averageScrollSpeed > SCROLL_SPEED_THRESHOLD) {
+        return { pattern: 'distracted', sprite: 'sad' };
+    }
+    
+    // Focused: Low scroll frequency, high engagement
+    if (scrollFrequency < 5 && engagementDuration > 60000) {
+        return { pattern: 'focused', sprite: 'happy' };
+    }
+    
+    // Restless: High scroll speed but not quite distracted
+    if (averageScrollSpeed > 800 && scrollFrequency > 10) {
+        return { pattern: 'restless', sprite: 'sleepy' };
+    }
+    
+    // Binge-consuming: Very high engagement, medium scroll frequency
+    if (engagementDuration > 120000 && scrollFrequency > 8) {
+        return { pattern: 'binge', sprite: 'sleepy' };
+    }
+    
+    // Default to normal
+    return { pattern: 'normal', sprite: 'happy' };
+}
+
+// Update pattern and notify
+function updatePattern(type) {
+    const metrics = calculatePatternMetrics();
+    const behavior = determineBehaviorPattern(metrics);
+    
+    const pattern = {
+        ...metrics,
+        behavior: behavior.pattern,
+        sprite: behavior.sprite,
+        type: 'current'
+    };
+    
+    // Update storage and trigger UI update
+    chrome.storage.local.set({ 
+        currentPattern: pattern
+    }, () => {
+        try {
+            chrome.runtime.sendMessage({
+                type: 'pattern_update',
+                data: pattern
+            });
+        } catch (error) {
+            console.log('Error sending pattern update:', error);
+    }
+});
+}
+
+// Reset metrics periodically
+setInterval(() => {
+    const metrics = calculatePatternMetrics();
+    const behavior = determineBehaviorPattern(metrics);
+    
+    const pattern = {
+        ...metrics,
+        behavior: behavior.pattern,
+        sprite: behavior.sprite,
+        type: 'periodic'
+    };
+    
+    // Store the pattern
+    chrome.storage.local.set({ 
+        currentPattern: pattern
+    });
+    
+    // Reset current metrics
+    patternMetrics = {
+        scrollFrequency: 0,
+        averageScrollSpeed: 0,
+        engagementDuration: 0,
+        lastUpdate: Date.now()
+    };
+    
+    // Clear old data
+    scrollEvents = [];
+    engagementSessions = [];
+    
+    console.log('Pattern reset:', pattern);
+}, PATTERN_UPDATE_INTERVAL);
+
+// Initialize with a normal pattern
+updatePattern('normal'); 

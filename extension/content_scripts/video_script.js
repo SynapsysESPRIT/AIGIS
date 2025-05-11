@@ -1,10 +1,11 @@
-// Fused Video Analysis Script: Brainrot, Violence, Deepfake
-console.log("🧠🔫🤖 video analysis script loaded!");
+// Fused Video Analysis Script: Brainrot, Violence, Deepfake, Epilepsy
+console.log("🧠🔫🤖⚡ video analysis script loaded!");
 
 // --- CONFIG ---
 const BRAINROT_COOLDOWN = 20000; // ms
 const VIOLENCE_COOLDOWN = 15000; // ms
 const DEEPFAKE_COOLDOWN = 20000; // ms
+const EPILEPSY_COOLDOWN = 20000; // ms
 const ANALYSIS_INTERVAL = 2000; // ms (how often to try analyzing a frame)
 const VIOLENCE_THRESHOLD = 0.5;
 
@@ -24,6 +25,7 @@ function ensureBadgeCSS() {
             .fused-badge-brainrot { top: 10px; left: 10px; background: rgba(255,0,0,0.85); }
             .fused-badge-violence { top: 10px; right: 10px; background: rgba(255,140,0,0.85); }
             .fused-badge-deepfake { bottom: 10px; left: 10px; background: rgba(128,0,255,0.85); }
+            .fused-badge-epilepsy { bottom: 10px; right: 10px; background: rgba(255,0,255,0.85); }
         `;
         document.head.appendChild(style);
     }
@@ -104,13 +106,56 @@ function fetchDeepfake(frame, video) {
         .catch(() => ({ is_deepfake: false, confidence: 0 }));
 }
 
+async function fetchEpilepsy(frame) {
+    try {
+        console.log('[Epilepsy] Sending frame for analysis');
+        const response = await fetch('http://localhost:8000/video/epilepsy/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ image: frame })
+        });
+
+        console.log('[Epilepsy] Response status:', response.status);
+        const data = await response.json();
+        console.log('[Epilepsy] Response data:', data);
+
+        if (!response.ok) {
+            throw new Error(data.error || `HTTP error! status: ${response.status}`);
+        }
+
+        return {
+            is_epilepsy_trigger: data.is_epilepsy_trigger || false,
+            result: data.result || 'Unknown',
+            confidence: data.confidence || 0,
+            energy: data.energy || 0,
+            threshold: data.threshold || 0,
+            status: data.status || 'error',
+            frame_count: data.frame_count || 0
+        };
+    } catch (error) {
+        console.error('[Epilepsy] Error:', error);
+        return {
+            is_epilepsy_trigger: false,
+            result: `Error: ${error.message}`,
+            confidence: 0,
+            energy: 0,
+            threshold: 0,
+            status: 'error',
+            frame_count: 0
+        };
+    }
+}
+
 // --- MAIN ANALYSIS LOOP (refactored) ---
 function analyzeVideo(video) {
     if (!videoStates.has(video)) {
         videoStates.set(video, {
             lastBrainrot: 0, brainrotInFlight: false,
             lastViolence: 0, violenceInFlight: false,
-            lastDeepfake: 0, deepfakeInFlight: false
+            lastDeepfake: 0, deepfakeInFlight: false,
+            lastEpilepsy: 0, epilepsyInFlight: false
         });
     }
     if (video.paused || video.ended || !isTabActiveAndVisible()) return;
@@ -119,14 +164,16 @@ function analyzeVideo(video) {
         Promise.all([
             fetchBrainrot(frame),
             fetchViolence(frame),
-            fetchDeepfake(frame, video)
-        ]).then(([brainrot, violence, deepfake]) => {
-            console.log('[video_script.js] Sending VIDEO_ANALYSIS_RESULTS:', { brainrot, violence, deepfake });
+            fetchDeepfake(frame, video),
+            fetchEpilepsy(frame)
+        ]).then(([brainrot, violence, deepfake, epilepsy]) => {
+            console.log('[video_script.js] Sending VIDEO_ANALYSIS_RESULTS:', { brainrot, violence, deepfake, epilepsy });
             chrome.runtime.sendMessage({
                 type: 'VIDEO_ANALYSIS_RESULTS',
-                data: { brainrot, violence, deepfake }
+                data: { brainrot, violence, deepfake, epilepsy }
             });
-            // Optionally, update badges as before:
+            
+            // Update badges
             if (brainrot.is_brainrot) {
                 overlayBadge(video, 'brainrot', '⚠️ Brainrot Detected');
             } else {
@@ -141,6 +188,15 @@ function analyzeVideo(video) {
                 overlayBadge(video, 'deepfake', `🤖 Deepfake (${Math.round(deepfake.confidence * 100)}%)`);
             } else {
                 removeBadge(video, 'deepfake');
+            }
+            if (epilepsy.status === 'collecting') {
+                overlayBadge(video, 'epilepsy', `⚡ ${epilepsy.result}`);
+            } else if (epilepsy.status === 'error') {
+                overlayBadge(video, 'epilepsy', `⚠️ ${epilepsy.result}`);
+            } else if (epilepsy.is_epilepsy_trigger) {
+                overlayBadge(video, 'epilepsy', `⚡ Epilepsy Trigger (${Math.round(epilepsy.confidence * 100)}%)`);
+            } else {
+                removeBadge(video, 'epilepsy');
             }
         });
     }
@@ -163,12 +219,14 @@ function startVideoAnalysis(video) {
         removeBadge(video, 'brainrot');
         removeBadge(video, 'violence');
         removeBadge(video, 'deepfake');
+        removeBadge(video, 'epilepsy');
     });
     video.addEventListener("ended", () => {
         clearInterval(intervalId);
         removeBadge(video, 'brainrot');
         removeBadge(video, 'violence');
         removeBadge(video, 'deepfake');
+        removeBadge(video, 'epilepsy');
     });
 }
 
