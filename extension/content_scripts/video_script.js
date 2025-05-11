@@ -1,13 +1,13 @@
-// Fused Video Analysis Script: Brainrot, Violence, Deepfake, Epilepsy
+// Fused Video Analysis Script: Brainrot, Violence, Deepfake, Flashing Lights
 console.log("🧠🔫🤖⚡ video analysis script loaded!");
 
 // --- CONFIG ---
 const BRAINROT_COOLDOWN = 20000; // ms
 const VIOLENCE_COOLDOWN = 15000; // ms
 const DEEPFAKE_COOLDOWN = 20000; // ms
-const EPILEPSY_COOLDOWN = 20000; // ms
 const ANALYSIS_INTERVAL = 2000; // ms (how often to try analyzing a frame)
 const VIOLENCE_THRESHOLD = 0.5;
+const FLASH_FRAME_INTERVAL = 50; // ms (how often to check for flashing lights)
 
 // --- STATE ---
 const videoStates = new WeakMap(); // video => { lastXRequestTime, XRequestInFlight }
@@ -25,7 +25,7 @@ function ensureBadgeCSS() {
             .fused-badge-brainrot { top: 10px; left: 10px; background: rgba(255,0,0,0.85); }
             .fused-badge-violence { top: 10px; right: 10px; background: rgba(255,140,0,0.85); }
             .fused-badge-deepfake { bottom: 10px; left: 10px; background: rgba(128,0,255,0.85); }
-            .fused-badge-epilepsy { bottom: 10px; right: 10px; background: rgba(255,0,255,0.85); }
+            .fused-badge-flash { bottom: 10px; right: 10px; background: rgba(255,0,255,0.85); }
         `;
         document.head.appendChild(style);
     }
@@ -106,127 +106,147 @@ function fetchDeepfake(frame, video) {
         .catch(() => ({ is_deepfake: false, confidence: 0 }));
 }
 
-async function fetchEpilepsy(frame) {
+async function fetchFlashDetection(frame) {
     try {
-        console.log('[Epilepsy] Sending frame for analysis');
-        const response = await fetch('http://localhost:8000/video/epilepsy/', {
+        console.log('[Flash] Sending frame for analysis');
+        const response = await fetch("http://127.0.0.1:8000/video/epilepsy/", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
             body: JSON.stringify({ image: frame })
         });
 
-        console.log('[Epilepsy] Response status:', response.status);
+        console.log('[Flash] Response status:', response.status);
         const data = await response.json();
-        console.log('[Epilepsy] Response data:', data);
+        console.log('[Flash] Response data:', data);
 
         if (!response.ok) {
             throw new Error(data.error || `HTTP error! status: ${response.status}`);
         }
 
         return {
-            is_epilepsy_trigger: data.is_epilepsy_trigger || false,
+            is_flash_trigger: data.is_epilepsy_trigger || false,
             result: data.result || 'Unknown',
             confidence: data.confidence || 0,
-            energy: data.energy || 0,
-            threshold: data.threshold || 0,
+            brightness_change: data.brightness_change || 0,
             status: data.status || 'error',
             frame_count: data.frame_count || 0
         };
     } catch (error) {
-        console.error('[Epilepsy] Error:', error);
+        console.error('[Flash] Error:', error);
+        if (error.message === 'Failed to fetch') {
+            return {
+                is_flash_trigger: false,
+                result: 'Server connection error. Please ensure the server is running.',
+                confidence: 0,
+                brightness_change: 0,
+                status: 'error',
+                frame_count: 0
+            };
+        }
         return {
-            is_epilepsy_trigger: false,
+            is_flash_trigger: false,
             result: `Error: ${error.message}`,
             confidence: 0,
-            energy: 0,
-            threshold: 0,
+            brightness_change: 0,
             status: 'error',
             frame_count: 0
         };
     }
 }
 
-// --- MAIN ANALYSIS LOOP (refactored) ---
-function analyzeVideo(video) {
-    if (!videoStates.has(video)) {
-        videoStates.set(video, {
-            lastBrainrot: 0, brainrotInFlight: false,
-            lastViolence: 0, violenceInFlight: false,
-            lastDeepfake: 0, deepfakeInFlight: false,
-            lastEpilepsy: 0, epilepsyInFlight: false
-        });
-    }
-    if (video.paused || video.ended || !isTabActiveAndVisible()) return;
-    const frame = captureFrame(video);
-    if (frame) {
-        Promise.all([
-            fetchBrainrot(frame),
-            fetchViolence(frame),
-            fetchDeepfake(frame, video),
-            fetchEpilepsy(frame)
-        ]).then(([brainrot, violence, deepfake, epilepsy]) => {
-            console.log('[video_script.js] Sending VIDEO_ANALYSIS_RESULTS:', { brainrot, violence, deepfake, epilepsy });
-            chrome.runtime.sendMessage({
-                type: 'VIDEO_ANALYSIS_RESULTS',
-                data: { brainrot, violence, deepfake, epilepsy }
-            });
-            
-            // Update badges
-            if (brainrot.is_brainrot) {
-                overlayBadge(video, 'brainrot', '⚠️ Brainrot Detected');
-            } else {
-                removeBadge(video, 'brainrot');
-            }
-            if (violence.is_violence && violence.confidence > VIOLENCE_THRESHOLD) {
-                overlayBadge(video, 'violence', '🔫 Violence Detected');
-            } else {
-                removeBadge(video, 'violence');
-            }
-            if (deepfake.is_deepfake) {
-                overlayBadge(video, 'deepfake', `🤖 Deepfake (${Math.round(deepfake.confidence * 100)}%)`);
-            } else {
-                removeBadge(video, 'deepfake');
-            }
-            if (epilepsy.status === 'collecting') {
-                overlayBadge(video, 'epilepsy', `⚡ ${epilepsy.result}`);
-            } else if (epilepsy.status === 'error') {
-                overlayBadge(video, 'epilepsy', `⚠️ ${epilepsy.result}`);
-            } else if (epilepsy.is_epilepsy_trigger) {
-                overlayBadge(video, 'epilepsy', `⚡ Epilepsy Trigger (${Math.round(epilepsy.confidence * 100)}%)`);
-            } else {
-                removeBadge(video, 'epilepsy');
-            }
-        });
-    }
-}
-
 function startVideoAnalysis(video) {
     if (video.dataset.fusedChecked) return;
     video.dataset.fusedChecked = "true";
-    let intervalId;
+    let analysisIntervalId;
+    let flashIntervalId;
+    
     function analysisLoop() {
         if (!video.paused && !video.ended && isTabActiveAndVisible()) {
-            analyzeVideo(video);
+            const frame = captureFrame(video);
+            if (frame) {
+                // Run other analyses immediately
+                Promise.all([
+                    fetchBrainrot(frame),
+                    fetchViolence(frame),
+                    fetchDeepfake(frame, video)
+                ]).then(([brainrot, violence, deepfake]) => {
+                    console.log('[video_script.js] Sending VIDEO_ANALYSIS_RESULTS:', { brainrot, violence, deepfake });
+                    chrome.runtime.sendMessage({
+                        type: 'VIDEO_ANALYSIS_RESULTS',
+                        data: { brainrot, violence, deepfake }
+                    });
+                    
+                    // Update badges
+                    if (brainrot.is_brainrot) {
+                        overlayBadge(video, 'brainrot', '⚠️ Brainrot Detected');
+                    } else {
+                        removeBadge(video, 'brainrot');
+                    }
+                    if (violence.is_violence && violence.confidence > VIOLENCE_THRESHOLD) {
+                        overlayBadge(video, 'violence', '🔫 Violence Detected');
+                    } else {
+                        removeBadge(video, 'violence');
+                    }
+                    if (deepfake.is_deepfake) {
+                        overlayBadge(video, 'deepfake', `🤖 Deepfake (${Math.round(deepfake.confidence * 100)}%)`);
+                    } else {
+                        removeBadge(video, 'deepfake');
+                    }
+                });
+            }
         }
     }
+    
+    function flashDetectionLoop() {
+        if (!video.paused && !video.ended && isTabActiveAndVisible()) {
+            const frame = captureFrame(video);
+            if (frame) {
+                fetchFlashDetection(frame).then(flashData => {
+                    if (flashData.status === 'collecting') {
+                        overlayBadge(video, 'flash', `⚡ ${flashData.result}`);
+                    } else if (flashData.status === 'error') {
+                        overlayBadge(video, 'flash', `⚠️ ${flashData.result}`);
+                    } else if (flashData.is_flash_trigger) {
+                        overlayBadge(video, 'flash', `⚡ Flashing Lights Detected`);
+                    } else {
+                        removeBadge(video, 'flash');
+                    }
+                    
+                    // Send results
+                    chrome.runtime.sendMessage({
+                        type: 'VIDEO_ANALYSIS_RESULTS',
+                        data: { flash: flashData }
+                    });
+                });
+            }
+        }
+    }
+    
     video.addEventListener("playing", () => {
-        intervalId = setInterval(analysisLoop, ANALYSIS_INTERVAL);
+        analysisIntervalId = setInterval(analysisLoop, ANALYSIS_INTERVAL);
+        flashIntervalId = setInterval(flashDetectionLoop, FLASH_FRAME_INTERVAL);
+        overlayBadge(video, 'flash', '⚡ Monitoring for flashing lights');
     });
+    
     video.addEventListener("pause", () => {
-        clearInterval(intervalId);
+        clearInterval(analysisIntervalId);
+        clearInterval(flashIntervalId);
         removeBadge(video, 'brainrot');
         removeBadge(video, 'violence');
         removeBadge(video, 'deepfake');
-        removeBadge(video, 'epilepsy');
+        removeBadge(video, 'flash');
     });
+    
     video.addEventListener("ended", () => {
-        clearInterval(intervalId);
+        clearInterval(analysisIntervalId);
+        clearInterval(flashIntervalId);
         removeBadge(video, 'brainrot');
         removeBadge(video, 'violence');
         removeBadge(video, 'deepfake');
-        removeBadge(video, 'epilepsy');
+        removeBadge(video, 'flash');
     });
 }
 
