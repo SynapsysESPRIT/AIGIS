@@ -8,6 +8,11 @@ from pathlib import Path
 import random
 import re
 import torch
+import subprocess
+import tempfile
+import base64 
+import time
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -16,8 +21,14 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.memory import ConversationBufferMemory
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import TextLoader
-# Import HumanMessage from langchain.schema
 from langchain.schema import HumanMessage
+
+from elevenlabs.client import ElevenLabs  # Changed from TextToSpeechClient
+from tqdm import tqdm
+from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, CSVLoader
+
+# Initialize the ElevenLabs Client
+elevenlabs_client = ElevenLabs(api_key=os.environ.get("ELEVENLABS_API_KEY"))  # Changed variable name and class
 
 # Store globally initialized assistant
 assistant_instance = None
@@ -46,6 +57,20 @@ class ChildSafetyAssistant:
         self.vector_store = None
         self.chain = None
         self._setup_llm(model_name)
+        
+        # Fallback responses for when the model is unavailable
+        self.fallback_responses = {
+            "bullying": [
+                "Sweetie, I'm so sorry you're going through this. Remember, you're not alone. The first thing to do is tell a trusted adult - like your parents, teacher, or school counselor. They can help you handle this situation safely.",
+                "I understand this is really hard, dear. It's important to know that bullying is never okay. Let's talk to someone who can help you - like your parents or a teacher. They know how to handle these situations and keep you safe.",
+                "This must be really difficult for you, honey. The most important thing is to tell a trusted adult about what's happening. They can help you and make sure it stops. You deserve to feel safe and happy."
+            ],
+            "general": [
+                "Hi sweetie. I'm here to help you understand things that might be confusing or scary online. What specific question do you have?",
+                "Hello, dear. I can see you have a question. Let me try to explain this in a way that's helpful and appropriate for you.",
+                "Hi there. That's a good question. Let me share some helpful information that's right for your age."
+            ]
+        }
 
     def _setup_llm(self, model_name: str):
       print(f"Connecting to Groq model {model_name}...")
@@ -55,7 +80,7 @@ class ChildSafetyAssistant:
           temperature=0.7,
           max_tokens=512,
           top_p=0.95,
-          groq_api_key=os.environ.get("GROQ_API_KEY"),
+          groq_api_key=os.environ.get("GROQAPI_KEY"),
       )
 
       print("Mom Assistant model connected via Groq!")
@@ -124,6 +149,7 @@ class ChildSafetyAssistant:
         6. Never use language that might frighten or shame the child
         7. Focus on empowerment and building resilience
         8. Include gentle reassurance in every response
+        9. make the answers short and concise (max 5 - 8 sentences)
 
         Context information from safety guides is provided below to inform your responses:
         {context}
@@ -153,42 +179,44 @@ class ChildSafetyAssistant:
         )
         return retrieval_chain
 
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+    def _try_query_llm(self, filtered_question):
+        """Attempt to query the LLM with retry logic"""
+        try:
+            result = self.custom_chain.invoke({"input": filtered_question})
+            return result
+        except Exception as e:
+            print(f"Error in LLM query attempt: {e}")
+            raise  # Let the retry decorator handle the retry
+
     def query(self, question: str) -> dict[str, any]:
         try:
             # First check if we have a vector store
             if self.vector_store is None:
                 print("WARNING: Vector store is None, using fallback responses")
-                maternal_responses = [
-                    "Hi sweetie. I'm here to help you understand things that might be confusing or scary online. What specific question do you have?",
-                    "Hello, dear. I can see you have a question. Let me try to explain this in a way that's helpful and appropriate for you.",
-                    "Hi there. That's a good question. Let me share some helpful information that's right for your age.",
-                    "I understand you're curious about that. Let me give you an explanation that will help you understand safely.",
-                    "That's something many kids wonder about. Let me help you understand in a way that's comfortable and safe."
-                ]
-                import random
                 return {
-                    "answer": random.choice(maternal_responses) + " (Note: I'm currently in basic mode without my full knowledge. I'll try to help, but my answers might be limited.)",
+                    "answer": random.choice(self.fallback_responses["general"]),
                     "sources": []
                 }
 
-            # If we have a vector store, use it for contextual responses
-
             # Filter potentially harmful content from the question
             filtered_question = self._filter_sensitive_content(question)
-
             print(f"Processing query: {filtered_question}")
 
-            # Try to get a meaningful response using our custom chain
+            # Try to get a meaningful response using our custom chain with retry logic
             try:
-                # Process the query with the custom chain
-                result = self.custom_chain.invoke({"input": filtered_question})
+                result = self._try_query_llm(filtered_question)
                 print("Query processed successfully")
             except Exception as e:
-                print(f"Error invoking chain: {e}")
-                import traceback
-                traceback.print_exc()
+                print(f"Error invoking chain after retries: {e}")
+                # Select appropriate fallback response based on question content
+                if any(word in question.lower() for word in ["bully", "bullied", "bullies", "mean", "hurt"]):
+                    fallback = random.choice(self.fallback_responses["bullying"])
+                else:
+                    fallback = random.choice(self.fallback_responses["general"])
+                
                 return {
-                    "answer": "I'm here for you, sweetie. It seems I'm having a little trouble with my thinking right now. Can you tell me more about what you'd like help with?",
+                    "answer": fallback + " (Note: I'm currently in basic mode. I'll try to help, but my answers might be limited.)",
                     "sources": []
                 }
 
@@ -209,7 +237,6 @@ class ChildSafetyAssistant:
                 answer = "I'm here to help you understand things that might be confusing online. Could you tell me more about what you're asking?"
 
             # Clean up any model tags and formatting
-            import re
             answer = re.sub(r'<\|system\|>.*?(?=<\|user\|>|<\|assistant\|>|$)', '', answer, flags=re.DOTALL).strip()
             answer = re.sub(r'<\|user\|>.*?(?=<\|assistant\|>|$)', '', answer, flags=re.DOTALL).strip()
             answer = re.sub(r'<\|assistant\|>', '', answer).strip()
@@ -223,7 +250,6 @@ class ChildSafetyAssistant:
                 "I believe in you.",
                 "We'll figure this out together, okay?"
             ]
-            import random
             if not any(ending in answer for ending in motherly_endings):
                 answer += f"\n\n{random.choice(motherly_endings)}"
 
@@ -261,11 +287,8 @@ class ChildSafetyAssistant:
             }
 
         except Exception as e:
-            import traceback
-            error_details = traceback.format_exc()
             print(f"Error in query: {e}")
-            print(f"Error details: {error_details}")
-
+            traceback.print_exc()
             # Provide a gentle fallback response
             return {
                 "answer": "I'm here for you, sweetie. It seems I'm having a little trouble right now. Can you tell me again what you'd like help with?",
@@ -353,7 +376,47 @@ def chatbot_view(request):
 
             # Query the assistant
             response = assistant.query(question)
-            return JsonResponse(response)
+            answer = response.get("answer", "I'm here to help you.")
+
+            # Try to generate audio with retry logic
+            max_audio_retries = 2
+            audio_retry_delay = 1  # seconds
+            
+            for attempt in range(max_audio_retries):
+                try:
+                    audio_stream = elevenlabs_client.text_to_speech.convert(
+                        text=answer,
+                        voice_id="EXAVITQu4vr4xnSDxMaL",
+                        model_id="eleven_monolingual_v1"
+                    )
+                    
+                    # Collect audio data from the generator
+                    audio_bytes = b''
+                    for chunk in audio_stream:
+                        if chunk:
+                            audio_bytes += chunk
+                    
+                    # Encode audio data to base64
+                    audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+                    
+                    return JsonResponse({
+                        "answer": answer, 
+                        "audio_data": audio_base64, 
+                        "audio_format": "audio/mp3"
+                    })
+                    
+                except Exception as e:
+                    print(f"Error generating audio (attempt {attempt + 1}/{max_audio_retries}): {e}")
+                    if attempt < max_audio_retries - 1:
+                        time.sleep(audio_retry_delay)
+                        continue
+                    
+                    # If all retries failed, return response without audio
+                    return JsonResponse({
+                        "answer": answer,
+                        "error": "Audio generation is temporarily unavailable. Please try again later.",
+                        "audio_available": False
+                    })
 
         else:
             return render(request, 'chat_interface.html')
@@ -361,4 +424,7 @@ def chatbot_view(request):
     except Exception as e:
         print(f"Error in chatbot_view: {e}")
         traceback.print_exc()
-        return JsonResponse({"error": "An error occurred while processing the request."}, status=500)
+        return JsonResponse({
+            "error": "I'm having trouble right now. Please try again in a few moments.",
+            "details": str(e) if os.environ.get('DEBUG', 'False').lower() == 'true' else None
+        }, status=500)

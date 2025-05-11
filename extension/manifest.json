@@ -21,7 +21,9 @@
         "<all_urls>"
       ],
       "js": [
+        "content_scripts/text_content_script.js",
         "content_scripts/video_script.js",
+        /*"content_scripts/audio_script.js",*/
         "content_scripts/usage_pattern_analyzer.js",
         "content_scripts/behavior_monitor_script.js",
         "html2canvas.min.js"

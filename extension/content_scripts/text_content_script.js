@@ -153,7 +153,7 @@ Extract all visible text while maintaining this structure.`
 }
 
 // Function to send text to Django API
-async function sendTextToAPI(text) {
+async function sendTextToAPI(text) { // Reverted to accept only text
     try {
         if (textRequestInFlight) return null;
         if (!isTabActiveAndVisible()) return null;
@@ -161,14 +161,14 @@ async function sendTextToAPI(text) {
         if (now - lastTextRequestTime < TEXT_REQUEST_COOLDOWN) return null;
         lastTextRequestTime = now;
         textRequestInFlight = true;
-        console.log('Sending text to API:', text.substring(0, 100) + '...'); // Log first 100 chars
+        console.log('Sending text to API for classification:', text.substring(0, 100) + '...'); // Log first 100 chars
 
         const response = await fetch(DJANGO_API_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ text: text })
+            body: JSON.stringify({ text: text }) // Send only text
         });
 
         const responseData = await response.json();
@@ -178,7 +178,7 @@ async function sendTextToAPI(text) {
             throw new Error(`Django API error: ${response.status} ${response.statusText}\n${JSON.stringify(responseData)}`);
         }
 
-        console.log('Text classification results:', responseData);
+        console.log('Text classification results from backend:', responseData);
 
         // Send results to popup
         chrome.runtime.sendMessage({
@@ -203,9 +203,11 @@ async function processPageText() {
             return;
         }
 
-        const text = await analyzeImageWithGemini(screenshot);
-        if (text) {
-            await sendTextToAPI(text);
+        const extractedText = await analyzeImageWithGemini(screenshot); // Changed variable name
+        if (extractedText) { // Check if text was extracted
+            await sendTextToAPI(extractedText); // Send only extracted text
+        } else {
+            console.warn('No text extracted from image, skipping API call.');
         }
     } catch (error) {
         console.error('Error processing page text:', error);
@@ -261,4 +263,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         processPageText().then(sendResponse);
         return true; // Will respond asynchronously
     }
-}); 
+});

@@ -15,6 +15,7 @@ ultralytics==8.0.196
 dill==0.3.6
 soundfile==0.12.1
 pydub==0.25.1
+librosa
 
 # TensorFlow for compatibility with the model
 tensorflow==2.18.0
@@ -30,6 +31,8 @@ langchain==0.3.25
 langchain-community==0.3.23
 langchain-groq>=0.3.2
 langchain-huggingface==0.1.0
+elevenlabs
+tenacity
 
 # Development Tools
 python-dotenv==1.0.0

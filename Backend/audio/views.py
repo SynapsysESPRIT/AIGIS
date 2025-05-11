@@ -10,6 +10,8 @@ import tempfile
 import soundfile as sf
 from pydub import AudioSegment
 from pydub.exceptions import CouldntDecodeError
+from transformers import HubertForSequenceClassification, Wav2Vec2FeatureExtractor
+import librosa
 
 SAMPLE_RATE = 16000
 N_MELS = 128
@@ -35,6 +37,41 @@ MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models', 
 model = AudioRNN()
 model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device('cpu')))
 model.eval()
+
+# Load sentiment analysis model and feature extractor
+sentiment_model = HubertForSequenceClassification.from_pretrained(
+    "superb/hubert-large-superb-er",
+    num_labels=4
+)
+sentiment_model.load_state_dict(torch.load(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models', 'audio_hubert_sentiment_analysis.pth')))
+sentiment_model.eval()
+
+feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("superb/hubert-large-superb-er")
+
+id2label = {
+    0: "angry",
+    1: "happy",
+    2: "sad",
+    3: "neutral"
+}
+
+def predict_emotion(audio_path):
+    speech, sr = librosa.load(audio_path, sr=16000, mono=True)
+    inputs = feature_extractor(
+        speech,
+        sampling_rate=16000,
+        return_tensors="pt",
+        padding=True
+    )
+    with torch.no_grad():
+        outputs = sentiment_model(**inputs)
+    probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
+    pred_id = torch.argmax(probs).item()
+    return {
+        "emotion": id2label[pred_id],
+        "confidence": round(probs[0][pred_id].item() * 100, 2),
+        "probabilities": {id2label[i]: round(float(prob), 4) for i, prob in enumerate(probs[0])}
+    }
 
 @csrf_exempt
 def infer_audio(request):
@@ -73,9 +110,14 @@ def infer_audio(request):
                 probs = softmax(output)
                 real_prob = probs[0][0].item()
                 fake_prob = probs[0][1].item()
+
+            # Sentiment analysis
+            sentiment_result = predict_emotion(temp_audio_path)
+
             return JsonResponse({
                 'real_prob': real_prob,
-                'fake_prob': fake_prob
+                'fake_prob': fake_prob,
+                'sentiment': sentiment_result
             })
         except CouldntDecodeError:
             return JsonResponse({'error': 'Invalid audio file or ffmpeg not installed'}, status=400)

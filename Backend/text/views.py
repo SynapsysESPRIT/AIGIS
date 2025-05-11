@@ -12,6 +12,7 @@ import logging
 import gc
 import warnings
 from transformers import logging as transformers_logging
+import requests  # Added for Gemini API call
 
 # Suppress unnecessary warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -91,6 +92,93 @@ def load_model_and_tokenizer():
 
 load_model_and_tokenizer()
 
+# --- Gemini Classification Start ---
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")  # Ensure this environment variable is set
+
+def classify_text_with_gemini(text_to_classify):
+    if not GEMINI_API_KEY:
+        logger.error("GEMINI_API_KEY not found in environment variables.")
+        return {"error": "Gemini API key not configured"}
+
+    if not text_to_classify or text_to_classify.strip() == "":
+        logger.warn("No text provided for Gemini classification.")
+        return {"error": "No text provided for classification"}
+
+    prompt = (
+        "Classify the following text based on these categories:\n"
+        "- Manipulative\n"
+        "- Potential suicide\n"
+        "- Blackmail\n"
+        "- Meeting attempt\n\n"
+        "Text to classify:\n"
+        f'"""{text_to_classify}"""\n\n'
+        "Return the classification as a JSON object where keys are the categories and values are boolean (true if the category applies, false otherwise). "
+        "For example:\n"
+        "{\n"
+        "  \"Manipulative\": false,\n"
+        "  \"Potential_suicide\": true,\n"
+        "  \"Blackmail\": false,\n"
+        "  \"Meeting_attempt\": false\n"
+        "}\n"
+        "If multiple categories apply, set all relevant ones to true. If none apply, all should be false.\n"
+        "Only return the JSON object."
+    )
+
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
+    }
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    
+    full_url = f"{GEMINI_API_URL}?key={GEMINI_API_KEY}"
+
+    try:
+        response = requests.post(full_url, headers=headers, json=payload, timeout=30)  # Added timeout
+        response.raise_for_status()  # Raises an HTTPError for bad responses (4XX or 5XX)
+        
+        result = response.json()
+        
+        if result.get("candidates") and result["candidates"][0].get("content") and result["candidates"][0]["content"].get("parts") and result["candidates"][0]["content"]["parts"][0].get("text"):
+            classification_json_string = result["candidates"][0]["content"]["parts"][0]["text"]
+            logger.info(f"Raw classification JSON string from Gemini: {classification_json_string}")
+            try:
+                # Attempt to clean the string if it's wrapped in markdown
+                if classification_json_string.strip().startswith("```json"):
+                    classification_json_string = classification_json_string.strip()[7:-3].strip()
+                elif classification_json_string.strip().startswith("```"):
+                    classification_json_string = classification_json_string.strip()[3:-3].strip()
+
+                classification_result = json.loads(classification_json_string.strip())
+                # Standardize keys to be consistent (e.g., lowercase with underscores)
+                standardized_result = {
+                    "manipulative": classification_result.get("Manipulative", classification_result.get("manipulative", False)),
+                    "potential_suicide": classification_result.get("Potential suicide", classification_result.get("potential_suicide", classification_result.get("Potential_suicide", False))),
+                    "blackmail": classification_result.get("Blackmail", classification_result.get("blackmail", False)),
+                    "meeting_attempt": classification_result.get("Meeting attempt", classification_result.get("meeting_attempt", classification_result.get("Meeting_attempt", False))),
+                }
+                logger.info(f"Parsed and standardized Gemini classification result: {standardized_result}")
+                return standardized_result
+            except json.JSONDecodeError as parse_error:
+                logger.error(f"Error parsing classification JSON from Gemini: {parse_error}, Raw string: {classification_json_string}")
+                return {"error": "Failed to parse classification from Gemini", "raw_response": classification_json_string}
+        else:
+            logger.warn(f"No classification found in Gemini response: {result}")
+            return {"error": "No classification data in Gemini response", "raw_response": result}
+            
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error calling Gemini API: {e}")
+        return {"error": f"Gemini API request failed: {str(e)}"}
+    except Exception as e:
+        logger.error(f"Unexpected error during Gemini classification: {e}")
+        logger.error(traceback.format_exc())
+        return {"error": f"Unexpected error in Gemini classification: {str(e)}"}
+
+# --- Gemini Classification End ---
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def classify_text(request):
@@ -114,11 +202,16 @@ def classify_text(request):
             logger.error("No text provided in request")
             return JsonResponse({'error': 'No text provided'}, status=400)
         messages = [msg.strip() for msg in text.split('\n') if msg.strip()]
-        logger.info(f"Processing {len(messages)} messages")
-        results = []
+        logger.info(f"Processing {len(messages)} messages with RoBERTa")
+        roberta_results = []
         for i, message in enumerate(messages):
             try:
                 if not message or message.startswith('--- Conversation'):
+                    roberta_results.append({
+                        'message': message,
+                        'prediction': {'label': 'Skipped', 'confidence': 0.0, 'confidence_level': 'N/A', 'explanation': 'Message skipped (e.g. conversation separator)'},
+                        'probabilities': {}
+                    })
                     continue
                 tokens = tokenizer(message, padding='max_length', truncation=True, max_length=128, return_tensors='pt')
                 with torch.no_grad():
@@ -130,7 +223,8 @@ def classify_text(request):
                 explanations = {
                     'Offensive': 'Contains offensive language, insults, or inappropriate content',
                     'Hate': 'Contains hate speech, discrimination, or harmful stereotypes',
-                    'Safe': 'Appears to be appropriate and respectful communication'
+                    'Safe': 'Appears to be appropriate and respectful communication',
+                    'Skipped': 'Message skipped (e.g. conversation separator)'
                 }
                 confidence_level = "High" if confidence > 0.8 else "Medium" if confidence > 0.6 else "Low"
                 probabilities = {
@@ -138,7 +232,7 @@ def classify_text(request):
                     'Hate': predictions[0][1].item(),
                     'Safe': predictions[0][2].item()
                 }
-                results.append({
+                roberta_results.append({
                     'message': message,
                     'prediction': {
                         'label': labels[predicted_class],
@@ -151,7 +245,7 @@ def classify_text(request):
                 logger.info(f"Message {i+1} classified as {labels[predicted_class]} with {confidence_level} confidence ({confidence:.2f})")
             except Exception as e:
                 logger.error(f"Error processing message {i+1}: {str(e)}")
-                results.append({
+                roberta_results.append({
                     'message': message,
                     'error': str(e),
                     'prediction': {
@@ -161,15 +255,24 @@ def classify_text(request):
                         'explanation': 'Failed to process this message'
                     }
                 })
+        
+        # Perform Gemini classification on the whole input text
+        logger.info("Performing classification with Gemini...")
+        gemini_classification_result = classify_text_with_gemini(text)
+
         return JsonResponse({
-            'results': results,
-            'total_messages': len(results),
-            'summary': {
-                'offensive_count': sum(1 for r in results if r.get('prediction', {}).get('label') == 'Offensive'),
-                'hate_count': sum(1 for r in results if r.get('prediction', {}).get('label') == 'Hate'),
-                'safe_count': sum(1 for r in results if r.get('prediction', {}).get('label') == 'Safe'),
-                'error_count': sum(1 for r in results if r.get('prediction', {}).get('label') == 'Error')
-            }
+            'roberta_classification': {
+                'results': roberta_results,
+                'total_messages': len(roberta_results),
+                'summary': {
+                    'offensive_count': sum(1 for r in roberta_results if r.get('prediction', {}).get('label') == 'Offensive'),
+                    'hate_count': sum(1 for r in roberta_results if r.get('prediction', {}).get('label') == 'Hate'),
+                    'safe_count': sum(1 for r in roberta_results if r.get('prediction', {}).get('label') == 'Safe'),
+                    'error_count': sum(1 for r in roberta_results if r.get('prediction', {}).get('label') == 'Error'),
+                    'skipped_count': sum(1 for r in roberta_results if r.get('prediction', {}).get('label') == 'Skipped')
+                }
+            },
+            'gemini_classification': gemini_classification_result
         })
     except Exception as e:
         logger.error(f"Unexpected error in classify_text: {str(e)}")

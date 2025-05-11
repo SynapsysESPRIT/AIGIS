@@ -38,9 +38,8 @@
         }
     }
 
-    // Function to check if user is in a Google Meet call
+    // Enhanced function to check if user is in a Google Meet call
     function isInGoogleMeet() {
-        // Check for Meet-specific UI elements that indicate an active call
         const micButton = document.querySelector('[aria-label*="microphone"], [data-is-muted]');
         const participantsList = document.querySelector('[aria-label*="participant"], .participants-list');
         const callControls = document.querySelector('.google-meet-controls, [role="dialog"]');
@@ -48,13 +47,12 @@
         return micButton !== null || participantsList !== null || callControls !== null;
     }
 
-    // Function to check if user is in a Facebook call
+    // Enhanced function to check if user is in a Facebook call
     async function isInFacebookCall() {
         try {
             const devices = await navigator.mediaDevices.enumerateDevices();
             const audioInputs = devices.filter(device => device.kind === 'audioinput');
 
-            // Check if any audio input device is in use
             for (const device of audioInputs) {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     audio: {
@@ -64,12 +62,9 @@
                     }
                 });
 
-                // Check if the stream is active and has audio tracks
                 if (stream.active && stream.getAudioTracks().length > 0) {
-                    // Check if the audio track is enabled and not muted
                     const audioTrack = stream.getAudioTracks()[0];
                     if (audioTrack.enabled && !audioTrack.muted) {
-                        // Check if there's actual audio data being received
                         const localAudioContext = new AudioContext();
                         const source = localAudioContext.createMediaStreamSource(stream);
                         const analyser = localAudioContext.createAnalyser();
@@ -78,14 +73,13 @@
                         const dataArray = new Uint8Array(analyser.frequencyBinCount);
                         analyser.getByteFrequencyData(dataArray);
 
-                        // If there's significant audio activity, user is likely in a call
                         const hasAudioActivity = dataArray.some(value => value > 0);
+
                         if (hasAudioActivity) {
                             return true;
                         }
                     }
                 }
-                // Clean up the stream when done
                 stream.getTracks().forEach(track => track.stop());
             }
             return false;
@@ -101,13 +95,11 @@
 
         // For Google Meet
         if (url.includes('meet.google.com')) {
-            console.log('Checking Google Meet call status...');
             return isInGoogleMeet();
         }
 
         // For Facebook calls
         if (url.includes('facebook.com') || url.includes('messenger.com')) {
-            console.log('Checking Facebook call status...');
             return await isInFacebookCall();
         }
 
@@ -124,10 +116,6 @@
             url.includes('meet.google.com/');
     }
 
-    // Log the current URL and call status for debugging
-    console.log('Current URL:', window.location.href);
-    console.log('Is video call window:', isVideoCallWindow());
-
     // Function to request tab capture from background script
     function requestTabCapture() {
         return new Promise((resolve) => {
@@ -136,7 +124,6 @@
                 if (response && response.stream) {
                     resolve(response.stream);
                 } else {
-                    console.error('Failed to get tab capture stream');
                     resolve(null);
                 }
             });
@@ -149,12 +136,12 @@
     let audioChunks = [];
     let startTime = 0;
 
-    // Function to process audio data
+    // Updated to analyze audio every 5 seconds instead of sending requests more frequently
     function processAudioData(inputData) {
         audioChunks.push(...Array.from(inputData));
 
-        // If 10 seconds of audio is collected, process it
-        if (audioContext && (audioContext.currentTime - startTime >= 10)) {
+        // If 5 seconds of audio is collected, process it
+        if (audioContext && (audioContext.currentTime - startTime >= 5)) {
             const wavBlob = createWavBlob(audioChunks, 1, audioContext.sampleRate);
             sendAudioToModel(wavBlob);
             audioChunks = []; // Reset chunks
@@ -162,32 +149,11 @@
         }
     }
 
-    // Function to start audio processing
-    async function startAudioProcessing() {
+    // Function to start audio processing from the user's microphone
+    async function startMicrophoneAudioProcessing() {
         try {
-            // Only proceed if this is a video call window
-            if (!isVideoCallWindow()) {
-                console.log('Not a video call window. Audio capture paused.');
-                return false;
-            }
-
-            // For Google Meet, check if we're in a call
-            if (window.location.href.includes('meet.google.com') && !isInGoogleMeet()) {
-                console.log('Not in an active Google Meet call. Audio capture paused.');
-                return false;
-            }
-
-            console.log('Starting audio processing...');
-
-            // Get the stream using chrome.tabCapture API
-            const stream = await requestTabCapture();
-
-            if (!stream) {
-                console.error('No audio stream available from tab capture');
-                return false;
-            }
-
-            console.log('Got audio stream:', stream);
+            // Get the user's microphone stream
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
             // Create audio context and processor
             audioContext = new AudioContext();
@@ -202,26 +168,28 @@
             startTime = audioContext.currentTime;
             audioProcessor.onaudioprocess = (event) => {
                 const inputBuffer = event.inputBuffer;
-                console.log('Processing audio data:', {
-                    numberOfChannels: inputBuffer.numberOfChannels,
-                    length: inputBuffer.length,
-                    sampleRate: inputBuffer.sampleRate,
-                    duration: inputBuffer.duration
-                });
                 processAudioData(inputBuffer.getChannelData(0));
             };
 
-            console.log('Audio processing started successfully');
             return true;
         } catch (error) {
-            console.error('Error starting audio processing:', error);
+            console.error('Error starting microphone audio processing:', error);
+            return false;
+        }
+    }
+
+    // Function to start audio processing
+    async function startAudioProcessing() {
+        try {
+            // Use microphone audio instead of tab capture
+            return await startMicrophoneAudioProcessing();
+        } catch (error) {
             return false;
         }
     }
 
     // Function to stop audio processing
     function stopAudioProcessing() {
-        console.log('Stopping audio processing...');
         if (audioProcessor) {
             audioProcessor.disconnect();
             audioProcessor = null;
@@ -235,19 +203,42 @@
             audioContext = null;
         }
         audioChunks = [];
-        console.log('Audio processing stopped');
     }
 
     // Listen for messages from background script
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (message.action === "captureStarted" && message.success) {
-            console.log('Received capture start message');
             startAudioProcessing();
         } else if (message.action === "captureStopped") {
-            console.log('Received capture stop message');
             stopAudioProcessing();
         }
     });
+
+    // Function to display sentiment analysis results in the console
+    async function displaySentimentResults(audioBlob) {
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'audio.wav');
+
+        try {
+            const apiUrl = "http://127.0.0.1:8000/audio/infer_audio/";
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.sentiment) {
+                console.log(`Emotion: ${result.sentiment.emotion}`);
+                console.log(`Confidence: ${result.sentiment.confidence}%`);
+                console.log('Probabilities:', result.sentiment.probabilities);
+            } else {
+                console.log('No sentiment data received.');
+            }
+        } catch (error) {
+            console.error('Error displaying sentiment results:', error);
+        }
+    }
 
     // Function to send audio to the model for inference
     async function sendAudioToModel(audioBlob) {
@@ -262,11 +253,45 @@
             });
 
             const result = await response.json();
-            console.log('Inference result:', result);
+
+            // Display sentiment analysis results
+            await displaySentimentResults(audioBlob);
         } catch (error) {
             console.error('Error sending audio to model:', error);
         }
     }
+
+    // Function to start audio processing when the microphone is connected and the tab is open
+    async function startAudioProcessingOnMicConnection() {
+        try {
+            // Check if the microphone is connected
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const audioInputs = devices.filter(device => device.kind === 'audioinput');
+
+            if (audioInputs.length === 0) {
+                return;
+            }
+
+            // Check if the tab is active and open
+            if (document.visibilityState === 'visible') {
+                await startMicrophoneAudioProcessing();
+            }
+
+            // Listen for visibility changes to start/stop audio processing dynamically
+            document.addEventListener('visibilitychange', async () => {
+                if (document.visibilityState === 'visible') {
+                    await startMicrophoneAudioProcessing();
+                } else {
+                    stopAudioProcessing();
+                }
+            });
+        } catch (error) {
+            console.error('Error checking microphone connection or tab status:', error);
+        }
+    }
+
+    // Call the function to start monitoring microphone connection and tab status
+    startAudioProcessingOnMicConnection();
 
     // Clean up on page unload
     window.addEventListener('unload', () => {

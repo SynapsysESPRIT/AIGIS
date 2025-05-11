@@ -1,4 +1,21 @@
 document.addEventListener('DOMContentLoaded', function () {
+    // Add message listener for text classification results
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        console.log('Popup received message:', message);
+        if (message.type === 'textClassificationResults') {
+            console.log('Received textClassificationResults:', message.results);
+            displayTextResults(message.results);
+            sendResponse({ status: "Text results processed" });
+            return true; // Indicates asynchronous response handling
+        } else if (message.type === 'behavior_warning') {
+            console.log('Received behavior warning:', message.data);
+            displayBehaviorWarning(message.data);
+        } else if (message.type === 'usage_pattern_update') {
+            console.log('Received usage pattern update:', message.data);
+            displayUsagePattern(message.data);
+        }
+    });
+
     const violenceToggle = document.getElementById('violence-toggle');
     const nudityToggle = document.getElementById('nudity-toggle');
     const scanButton = document.getElementById('scan-page');
@@ -160,7 +177,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         touched: 'sprites/owl/touched.gif'
                     }
                 };
-                
+
                 if (!pattern) {
                     // Initialize with a good pattern
                     const initialPattern = {
@@ -169,10 +186,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         status: 'good',
                         timestamp: Date.now()
                     };
-                    
+
                     // Store the initial pattern
                     chrome.storage.local.set({ currentPattern: initialPattern });
-                    
+
                     patternDiv.innerHTML = `
                         <div class="result good">
                             <span class="result-icon">🌟</span>
@@ -301,75 +318,42 @@ document.addEventListener('DOMContentLoaded', function () {
         // Clear previous results
         textResults.innerHTML = '';
 
-        if (!results || !results.results) {
-            textResults.innerHTML = '<div class="text-result">No results available</div>';
+        if (!results) {
+            textResults.innerHTML = '<div class="result safe"><span class="result-icon">ℹ️</span><span>No classification data available.</span></div>';
+            textSummary.innerHTML = ''; // Clear summary too
             return;
         }
 
         // Display each result
-        results.results.forEach(result => {
+        results.forEach(result => {
             const resultDiv = document.createElement('div');
             resultDiv.className = 'text-result';
-
-            // Add message
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'text-message';
-            messageDiv.textContent = result.message;
-            resultDiv.appendChild(messageDiv);
-
-            // Add prediction
-            const predictionDiv = document.createElement('div');
-            predictionDiv.className = 'text-prediction';
-            const icon = document.createElement('span');
-            icon.className = 'result-icon';
-
-            // Set icon based on prediction
-            if (result.prediction.label === 'Safe') {
-                icon.textContent = '✅';
-                predictionDiv.className += ' safe';
-            } else if (result.prediction.label === 'Offensive') {
-                icon.textContent = '⚠️';
-                predictionDiv.className += ' warning';
-            } else if (result.prediction.label === 'Hate') {
-                icon.textContent = '🚫';
-                predictionDiv.className += ' danger';
+            let classificationClass = 'safe';
+            let icon = '✅';
+            if (result.classification === 'Offensive') {
+                classificationClass = 'danger';
+                icon = '❗';
+            } else if (result.classification === 'Hate') {
+                classificationClass = 'warning';
+                icon = '⚠️';
             }
 
-            predictionDiv.appendChild(icon);
-            predictionDiv.appendChild(document.createTextNode(result.prediction.label));
-            resultDiv.appendChild(predictionDiv);
-
-            // Add confidence
-            const confidenceDiv = document.createElement('div');
-            confidenceDiv.className = 'text-confidence';
-            confidenceDiv.textContent = `${result.prediction.confidence_level} confidence (${(result.prediction.confidence * 100).toFixed(1)}%)`;
-            resultDiv.appendChild(confidenceDiv);
-
-            // Add explanation
-            const explanationDiv = document.createElement('div');
-            explanationDiv.className = 'text-explanation';
-            explanationDiv.textContent = result.prediction.explanation;
-            resultDiv.appendChild(explanationDiv);
-
-            // Add probabilities
-            const probabilitiesDiv = document.createElement('div');
-            probabilitiesDiv.className = 'text-probabilities';
-
-            Object.entries(result.probabilities).forEach(([type, prob]) => {
-                const probDiv = document.createElement('div');
-                probDiv.style.flex = '1';
-                probDiv.appendChild(document.createTextNode(`${type}: ${(prob * 100).toFixed(1)}%`));
-                probDiv.appendChild(createProbabilityBar(prob, type.toLowerCase()));
-                probabilitiesDiv.appendChild(probDiv);
-            });
-
-            resultDiv.appendChild(probabilitiesDiv);
+            resultDiv.innerHTML = `
+                <div class="text-message ${classificationClass}">${result.message}</div>
+                <div class="text-prediction">
+                    <span class="result-icon">${icon}</span>
+                    <span>${result.classification} (Confidence: ${result.confidence || 'N/A'})</span>
+                </div>
+                ${result.details && result.details.explanation ? `<div class="text-explanation">${result.details.explanation}</div>` : ''}
+            `;
             textResults.appendChild(resultDiv);
         });
 
-        // Display summary
+        // Display summary if available
         if (results.summary) {
             displaySummary(results.summary);
+        } else {
+            textSummary.innerHTML = '';
         }
     }
 
@@ -397,7 +381,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Function to scan the current page
     async function scanPage() {
-        if (!textToggle.checked) return;
+        if (!textToggle.checked) {
+            textResults.innerHTML = '<div class="result safe"><span class="result-icon">ℹ️</span><span>Text classification is disabled.</span></div>';
+            textSummary.innerHTML = '';
+            const geminiSummarySection = document.getElementById('gemini-summary-section');
+            const geminiResultsDiv = document.getElementById('gemini-results');
+            if (geminiResultsDiv) geminiResultsDiv.innerHTML = '';
+            if (geminiSummarySection) geminiSummarySection.style.display = 'none';
+            return;
+        }
+
+        textResults.innerHTML = '<div class="result safe"><span class="result-icon">⏳</span><span>Scanning page for text content...</span></div>';
+        textSummary.innerHTML = '';
+
+        const geminiResultsDiv = document.getElementById('gemini-results');
+        const geminiSummarySection = document.getElementById('gemini-summary-section');
+        if (geminiResultsDiv && geminiSummarySection) {
+            geminiResultsDiv.innerHTML = '<div class="result safe"><span class="result-icon">⏳</span><span>Awaiting overall chat analysis...</span></div>';
+            geminiSummarySection.style.display = 'block';
+        }
+
 
         try {
             // Get the active tab
@@ -407,8 +410,17 @@ document.addEventListener('DOMContentLoaded', function () {
             const results = await chrome.tabs.sendMessage(tab.id, { action: 'processText' });
 
             if (results) {
-                displayTextResults(results.results);
-                displaySummary(results.summary);
+                if (results.roberta_classification) {
+                    displayTextResults(results.roberta_classification);
+                } else {
+                    displayTextResults(null);
+                }
+
+                if (results.gemini_classification) {
+                    displayGeminiAnalysis(results.gemini_classification);
+                } else {
+                    displayGeminiAnalysis(null);
+                }
             }
         } catch (error) {
             console.error('Error scanning page:', error);
@@ -417,21 +429,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Event listeners
     scanButton.addEventListener('click', scanPage);
-
-    // Listen for messages from content script
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-        console.log('Popup received message:', message);
-        if (message.type === 'textClassificationResults') {
-            console.log('Received text classification results:', message.results);
-            displayTextResults(message.results);
-        } else if (message.type === 'behavior_warning') {
-            console.log('Received behavior warning:', message.data);
-            displayBehaviorWarning(message.data);
-        } else if (message.type === 'usage_pattern_update') {
-            console.log('Received usage pattern update:', message.data);
-            displayUsagePattern(message.data);
-        }
-    });
 
     // Function to display behavior warnings
     function displayBehaviorWarning(warning) {
@@ -582,6 +579,76 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Initial scan when popup opens
     scanPage();
+
+    function displayGeminiAnalysis(geminiData) {
+        const geminiResultsDiv = document.getElementById('gemini-results');
+        const geminiSummarySection = document.getElementById('gemini-summary-section');
+
+        if (!geminiResultsDiv || !geminiSummarySection) {
+            console.error('Gemini results display elements not found.');
+            return;
+        }
+
+        geminiResultsDiv.innerHTML = ''; // Clear previous results
+
+        function escapeHtml(unsafe) {
+            if (typeof unsafe !== 'string') return '';
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        if (!geminiData || Object.keys(geminiData).length === 0) {
+            geminiResultsDiv.innerHTML = '<div class="result safe"><span class="result-icon">ℹ️</span><span>No overall chat analysis data available from Gemini.</span></div>';
+            geminiSummarySection.style.display = 'block';
+            return;
+        }
+
+        let htmlContent = '';
+        let overallRiskLevel = 'safe'; // Default to safe
+
+        if (geminiData.overall_conclusion) {
+            const conclusionText = escapeHtml(geminiData.overall_conclusion.toLowerCase());
+            if (conclusionText.includes('blackmail') || conclusionText.includes('potential suicide') || conclusionText.includes('self-harm')) {
+                overallRiskLevel = 'danger';
+            } else if (conclusionText.includes('manipulative') || conclusionText.includes('meeting attempt') || conclusionText.includes('caution') || conclusionText.includes('risky') || conclusionText.includes('grooming')) {
+                overallRiskLevel = 'warning';
+            }
+
+            let icon = 'ℹ️';
+            if (overallRiskLevel === 'danger') icon = '❗';
+            else if (overallRiskLevel === 'warning') icon = '⚠️';
+
+            htmlContent += `<div class="result ${overallRiskLevel}" style="margin-bottom: 10px;">
+                                <span class="result-icon">${icon}</span>
+                                <strong>Overall Conclusion:</strong> ${escapeHtml(geminiData.overall_conclusion)}
+                            </div>`;
+        }
+
+        if (geminiData.themes_detected && geminiData.themes_detected.length > 0) {
+            htmlContent += '<div style="margin-bottom: 10px;"><strong>Detected Themes:</strong><ul style="margin-top: 5px; padding-left: 20px;">';
+            geminiData.themes_detected.forEach(theme => {
+                htmlContent += `<li>${escapeHtml(theme)}</li>`;
+            });
+            htmlContent += '</ul></div>';
+        } else if (geminiData.overall_conclusion) { // Only show "None" if there was a conclusion but no specific themes
+            htmlContent += '<div><strong>Detected Themes:</strong> None explicitly listed.</div>';
+        }
+
+
+        if (geminiData.original_text) {
+            htmlContent += `<div style="margin-top: 10px;">
+                                <strong>Analyzed Text Snapshot:</strong>
+                                <pre style="white-space: pre-wrap; word-wrap: break-word; background-color: #f8f9fa; color: #212529; padding: 10px; border: 1px solid #dee2e6; border-radius: 4px; max-height: 150px; overflow-y: auto; font-size: 0.85em; line-height: 1.4;">${escapeHtml(geminiData.original_text)}</pre>
+                            </div>`;
+        }
+
+        geminiResultsDiv.innerHTML = htmlContent || '<div class="result safe"><span class="result-icon">ℹ️</span><span>Gemini analysis processed, but no specific details to display.</span></div>';
+        geminiSummarySection.style.display = 'block';
+    }
 
     function updateStatus(type, enabled) {
         chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
@@ -825,7 +892,7 @@ document.addEventListener('DOMContentLoaded', function () {
             chrome.storage.local.get(['currentPattern'], (result) => {
                 const pattern = result.currentPattern;
                 let spriteState = 'happy';
-                
+
                 if (pattern) {
                     if (pattern.doomscrollingRate > 0.5 || pattern.violenceRate > 0.5) {
                         spriteState = 'sad';
@@ -833,7 +900,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         spriteState = 'sleepy';
                     }
                 }
-                
+
                 companionSprite.src = companion.sprites[spriteState];
             });
         }
@@ -909,9 +976,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 currentStatus.innerHTML = `
                     <div class="result ${pattern.status}">
                         <span class="result-icon">${pattern.status === 'good' ? '🌟' : pattern.status === 'bad' ? '⚠️' : '📊'}</span>
-                        <span>${pattern.status === 'good' ? 'Good browsing patterns' : 
-                                pattern.status === 'bad' ? 'Negative patterns detected' : 
-                                'Stable browsing patterns'}</span>
+                        <span>${pattern.status === 'good' ? 'Good browsing patterns' :
+                        pattern.status === 'bad' ? 'Negative patterns detected' :
+                            'Stable browsing patterns'}</span>
                         <div class="pattern-metrics">
                             <div>Doomscroll Rate: ${pattern.doomscrollRate.toFixed(2)}/min</div>
                             <div>Violence Rate: ${pattern.violenceRate.toFixed(2)}/min</div>
@@ -951,7 +1018,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // Keep only last 24 hours of data
                 const oneDayAgo = new Date(now.getTime() - 24 * 3600000);
-                dashboardData.historicalData = dashboardData.historicalData.filter(item => 
+                dashboardData.historicalData = dashboardData.historicalData.filter(item =>
                     new Date(item.time) > oneDayAgo
                 );
 
@@ -960,10 +1027,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div class="history-item">
                         <div class="history-time">${new Date(item.time).toLocaleTimeString()}</div>
                         <div class="history-status">
-                            <span class="result-icon">${item.pattern.status === 'good' ? '🌟' : 
-                                                    item.pattern.status === 'bad' ? '⚠️' : '📊'}</span>
-                            <span>${item.pattern.status === 'good' ? 'Good' : 
-                                    item.pattern.status === 'bad' ? 'Bad' : 'Stable'}</span>
+                            <span class="result-icon">${item.pattern.status === 'good' ? '🌟' :
+                        item.pattern.status === 'bad' ? '⚠️' : '📊'}</span>
+                            <span>${item.pattern.status === 'good' ? 'Good' :
+                        item.pattern.status === 'bad' ? 'Bad' : 'Stable'}</span>
                         </div>
                     </div>
                 `).join('');
@@ -980,9 +1047,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (dashboardToggle) {
             dashboardToggle.addEventListener('click', () => {
                 console.log('Opening dashboard...');
-                chrome.tabs.create({ 
+                chrome.tabs.create({
                     url: chrome.runtime.getURL('dashboard.html'),
-                    active: true 
+                    active: true
                 });
             });
         }
