@@ -43,30 +43,48 @@ Children are increasingly exposed to online threats:
 
 ---
 
-## 🛠️ Technical Stack
+## 🛠️ Technical Stack (Updated)
 
 ### 🧩 Extension (Frontend)
-- **Browser**: JavaScript + HTML + Tailwind CSS
-  - Chrome extension popup UI
-  - Secure authentication flow
-- **Dashboard**: React + Shadcn UI + Framer Motion
-  - Intuitive UI for parent review
-  - Real-time threat reports
+
+**Browser Extension**  
+- **JavaScript** (Vanilla JS + Content Scripts)  
+- **HTML**  
+- **CSS** (Custom styles only – _No Tailwind_)  
+
+**Chrome Extension Features**:
+- Badge overlays for real-time video analysis  
+- Communicates with backend via `fetch` API (HTTP requests)  
+
+---
 
 ### ⚙️ Backend
-- **Core**: Node.js + Express + MongoDB
-  - API routes for log storage and alert dispatch
-  - Session & parental settings management
 
-- **AI Models & Detection**
-  - OpenAI Whisper & Gemini for audio/chat analysis
-  - DeepFace/Deepware + MediaPipe for face detection and spoofing
-  - Custom-trained NLP for threat intent detection
-  - Flash and violence detection via OpenCV + metadata parsing
+**Core**  
+- **Python**  
+- **Django**  
+  - Uses **Django REST Framework** for API endpoints  
 
-- **Infrastructure**
-  - Hosted on Render / Vercel / Railway (TBD)
-  - Scalable microservices architecture (future-ready)
+**AI Models & Detection**  
+- **Keras / TensorFlow**  
+  - Custom-trained models for:
+    - “Brainrot” detection  
+    - Deepfake detection  
+- **OpenCV**  
+  - Violence detection via frame analysis  
+  - Flashing lights detection via brightness change rate  
+- **NumPy**  
+  - Signal processing (e.g., FFT, brightness calculations)  
+- **Pillow (PIL)**  
+  - Image decoding and preprocessing  
+
+---
+
+### 🗃️ Database
+
+- **Django ORM** (default: SQLite)  
+  - Easily swappable with **PostgreSQL** or **MySQL**  
+
 
 ---
 
