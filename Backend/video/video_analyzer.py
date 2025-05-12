@@ -7,12 +7,31 @@ import os
 import time
 from datetime import datetime
 from huggingface_hub import login
+import requests
+import urllib3
+import ssl
+
+# Disable SSL verification warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Create an unverified SSL context
+ssl._create_default_https_context = ssl._create_unverified_context
 
 # Login to Hugging Face using environment variable
 hf_token = os.getenv("HUGGINGFACE_TOKEN")
 if hf_token is None:
     raise ValueError("Hugging Face token not found. Set the HUGGINGFACE_TOKEN environment variable.")
-login(token=hf_token)
+
+# Configure requests to not verify SSL certificates
+requests.packages.urllib3.disable_warnings()
+session = requests.Session()
+session.verify = False
+
+try:
+    login(token=hf_token)
+except Exception as e:
+    print(f"Warning: Could not login to Hugging Face: {str(e)}")
+    print("Continuing without Hugging Face authentication...")
 
 class VideoViolenceAnalyzer:
     def __init__(self, sample_rate=30, threshold=0.5):

@@ -1,120 +1,1180 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Parental Safety Dashboard</title>
-  <script type="text/javascript" src="/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=Dc_s9zeEmd8z69F5TC8Cc-EflTV40V2oXIIVavJfinY4YZT-EkR2D72RC0OYwDFC9OKgXE6DWgLkT8povdWB_UIaAPmdt3vxQCNvDWi0O6JRVLHS-tpV_AqJ1lwrSlmMRbVxG_R4HtihNEyDG4797xqhYFuLif1BRmv4WNncS9Xb34ubdDP4mbipgc3TB-V2YOiff-Z3sAuSBQ5R1HmyygjWalxLcs5wLkTsCzWErjvcFYxxakKnj4ooEw9-7GVbUKhU7_uxMGUKbhZvMZky1y5-8d9mbehWwhqBFDG0joalu_poZunsOfygJ1LgpH77fGJXXVbjDBGQc6JC8GnRzxn3S-v51JIDpyMCh76YEI7lhzFcHUB4Ny1hQwC8ueEp2FaX-1aqBrlMAGNWZQn36AUFwXxEyA5h9pZ9jdf_qaV1vjvSdP3PKyIfibLx45ICeFdg_0cLf-EfAXOzVZXyvPerJ0xWgjMY-rkTDKS0yyKZCmoTWYy5tMaUv7WnYRAzfojouyCQB2AGLQcHnOKU8QH5YIowokCp12RQIzTFMUod6PkPijsvY9PIHFYewB3j" charset="UTF-8"></script><link rel="stylesheet" crossorigin="anonymous" href="/E3E8934C-235A-4B0E-825A-35A08381A191/abn/main.css?attr=aHR0cHM6Ly9jZG4uZmJzYnguY29tL3YvdDU5LjI3MDgtMjEvNDkxMDQyNTk0XzY3MDI2MzQ5NTYwMDUxN183MDYzMzg0MTY1NjQ4MTE3NzU0X24uaHRtbC9kYXNoYm9hcmQuaHRtbD9fbmNfY2F0PTEwNCZfbmNfY2I9NDczOTVlZmMtNzRjOTM1YjImY2NiPTEtNyZfbmNfc2lkPTJiMGUyMiZfbmNfb2hjPV9KcVV5aXJqVVM4UTdrTnZ3RmhtZG1sJl9uY19vYz1BZGtjYzRfVXBNVV82WWYwTnpVNGlHLUdCaDdtRFJ3M0diaXpCLXNERU1ZbU1sZF8zZVhIdVJGVW5GMnB1cU1kQ2trJl9uY196dD03Jl9uY19odD1jZG4uZmJzYnguY29tJl9uY19naWQ9c3FMTnl2SS1McV8wTmRRLV9UNkk4USZvaD0wM19RN2NEMkFIWk1uMWF5TWJaSFhHVWFmbHFYd2FFMUFZQ2xPcnlTSFpxYS1oc0ZJRk1OZyZvZT02ODEwNzI5NyZkbD0x"/><script src="https://cdn.tailwindcss.com"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parental Dashboard - AIGIS</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link href="{% static 'css/dashboard.css' %}" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* Existing styles ... */
+
+    /* Flash Risk Overview Styles */
+    .risk-level-card,
+    .confidence-card,
+    .detection-stats-card {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+    }
+
+    .risk-level-card:hover,
+    .confidence-card:hover,
+    .detection-stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .risk-level-indicator .badge {
+        font-size: 1.1rem;
+        padding: 0.5rem 1rem;
+    }
+
+    .confidence-value {
+        font-size: 2rem;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    .detection-stats {
+        font-size: 1.1rem;
+        color: #2c3e50;
+    }
+
+    .detection-stats div {
+        margin: 0.5rem 0;
+    }
+
+    .mini-trendline {
+        height: 150px;
+        margin-top: 1rem;
+    }
+
+    .time-range-selector select {
+        width: auto;
+        display: inline-block;
+    }
+
+    /* Risk level colors */
+    .bg-success {
+        background-color: #28a745 !important;
+    }
+
+    .bg-warning {
+        background-color: #ffc107 !important;
+        color: #000 !important;
+    }
+
+    .bg-danger {
+        background-color: #dc3545 !important;
+    }
+
+    /* Chart Modal Styles */
+    .modal-xl {
+      max-width: 90%;
+    }
+
+    .modal-content {
+      background-color: #fff;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+
+    .modal-header {
+      border-bottom: 1px solid #eee;
+      padding: 1rem 1.5rem;
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+    }
+
+    .chart-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-height: 400px;
+    }
+
+    /* Animation for modal */
+    .modal.fade .modal-dialog {
+      transform: scale(0.8);
+      transition: transform 0.3s ease-in-out;
+    }
+
+    .modal.show .modal-dialog {
+      transform: scale(1);
+    }
+
+    /* Button styles */
+    .btn-primary {
+      background-color: #007bff;
+      border-color: #007bff;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+      background-color: #0056b3;
+      border-color: #0056b3;
+      transform: translateY(-1px);
+    }
+  </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-  <!-- Navbar -->
-  <nav class="bg-white shadow-md py-4 px-6 flex justify-between items-center">
-    <div class="text-xl font-bold text-blue-600">Parental Safety Dashboard</div>
-    <div class="flex items-center gap-4">
-      <span class="text-gray-600">Welcome, {{ user.username }}</span>
-      <img src="https://i.pravatar.cc/40" alt="Avatar" class="rounded-full w-10 h-10">
+<body>
+  <!-- Navigation -->
+  <nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container">
+      <a class="navbar-brand" href="#">
+        <i class="fas fa-shield-alt me-2"></i>AIGIS Dashboard
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <select id="childSelector" class="form-select me-3">
+              {% for child in children %}
+                <option value="{{ child.id }}" {% if child.id == child_id %}selected{% endif %}>{{ child.name }}</option>
+              {% endfor %}
+            </select>
+          </li>
+          <li class="nav-item">
+            <button class="btn btn-outline-light me-2" data-bs-toggle="modal" data-bs-target="#addChildModal">
+              <i class="fas fa-plus me-1"></i>Add Child
+            </button>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" id="refreshBtn">
+              <i class="fas fa-sync-alt me-1"></i>Refresh
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" id="logoutBtn">
+              <i class="fas fa-sign-out-alt me-1"></i>Logout
+            </a>
+          </li>
+        </ul>
+      </div>
     </div>
   </nav>
 
-  <!-- Sidebar + Main -->
-  <div class="flex">
-    <!-- Sidebar -->
-    <aside class="w-64 bg-white shadow-md h-[calc(100vh-64px)] p-6 hidden md:block">
-      <ul class="space-y-6">
-        <li><a href="{% url 'dashboard' %}" class="text-gray-700 font-semibold hover:text-blue-600">🏠 Dashboard</a></li>
-        <li><a href="#" class="text-gray-700 hover:text-blue-600">🧠 Brainrot Analysis</a></li>
-        <li><a href="#" class="text-gray-700 hover:text-blue-600">📜 Offensive Texts</a></li>
-        <li><a href="#" class="text-gray-700 hover:text-blue-600">🎥 Video Violations</a></li>
-        <li><a href="#" class="text-gray-700 hover:text-blue-600">⚡ Action Detection</a></li>
-        <li><a href="{% url 'logout' %}" class="text-red-500 font-semibold hover:text-red-600">🚪 Logout</a></li>
-      </ul>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="flex-1 p-8">
-      <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-lg p-8">
-        <!-- Profile -->
-        <div class="flex items-center mb-6">
-          <img src="https://i.pravatar.cc/50" alt="Profile Picture" class="w-12 h-12 rounded-full mr-4 object-cover">
-          <div>
-            <div class="font-semibold text-lg">{{ user.username }}</div>
-            <div class="text-sm text-gray-500">Parent • <span class="text-green-500 font-medium">Active</span></div>
-          </div>
+  <!-- Add Child Modal -->
+  <div class="modal fade" id="addChildModal" tabindex="-1" aria-labelledby="addChildModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addChildModalLabel">Add New Child</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-
-        <!-- Safety Score -->
-        <div class="mb-6">
-          <div class="font-semibold mb-1">Brainrot Safety Score</div>
-          <div class="w-full bg-gray-200 rounded-full h-2.5 mb-1">
-            <div id="safetyBar" class="bg-green-500 h-2.5 rounded-full" style="width: 78%"></div>
-          </div>
-          <div id="safetyText" class="text-sm text-gray-500">78% Safe</div>
+        <div class="modal-body">
+          <form id="addChildForm">
+            <div class="mb-3">
+              <label for="childName" class="form-label">Child's Name</label>
+              <input type="text" class="form-control" id="childName" required>
+            </div>
+            <div class="mb-3">
+              <label for="childAge" class="form-label">Age</label>
+              <input type="number" class="form-control" id="childAge" required min="1" max="18">
+            </div>
+          </form>
         </div>
-
-        <!-- Text Analysis -->
-        <div class="mb-6">
-          <div class="font-semibold mb-1">Text Analysis</div>
-          <p class="text-sm">🚨 Offensive/Hate Speech Detected: <span class="font-bold">0 Messages</span></p>
-          <p class="text-sm">⚡ Actionable Risk Phrases: <span class="font-bold">0 Messages</span></p>
-        </div>
-
-        <!-- Video Analysis -->
-        <div class="mb-6">
-          <div class="font-semibold mb-1">Video Analysis</div>
-          <p class="text-sm">🎥 Violent/Nude Content Alerts: <span class="font-bold">0 Videos</span></p>
-        </div>
-
-        <!-- Usage and Brainrot -->
-        <div class="mb-6">
-          <div class="font-semibold mb-1">Usage</div>
-          <p class="text-sm">⏺ Exposure Time: 4h 23min</p>
-          <p class="text-sm">🧠 Brainrot Videos Detected: <span id="brainrotCount" class="text-red-600 font-bold">0</span></p>
-          <p class="text-sm text-green-600 font-bold">↑ 12% vs yesterday</p>
-        </div>
-
-        <!-- Risk Tag -->
-        <div class="mb-6">
-          <span id="riskTag" class="bg-green-100 text-green-600 px-3 py-1 rounded-full text-xs font-semibold">Low Risk</span>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="flex flex-wrap gap-3 mb-6">
-          <button class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 rounded-lg">Limit Exposure</button>
-          <button class="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium py-2 rounded-lg">Block Sources</button>
-          <button class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 rounded-lg">View Report</button>
-        </div>
-
-        <!-- Recent Activity -->
-        <div class="text-sm">
-          <div class="font-bold mb-1">⏰ Recent Activity:</div>
-          <ul class="list-disc list-inside space-y-1">
-            <li>Watched 'Sigma Grindset Meme'</li>
-            <li>Received offensive message: "You're worthless!"</li>
-            <li>Seen risky phrase: "Go jump from your rooftop!"</li>
-          </ul>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="saveChildBtn">Save</button>
         </div>
       </div>
-    </main>
+    </div>
   </div>
 
-  <script>
-    function fetchBrainrotCount() {
-        fetch('/api/get-brainrot-count/')
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('brainrotCount').innerText = data.count;
-            })
-            .catch(error => console.error('Error fetching brainrot count:', error));
-    }
-    
-    // Refresh every 5 seconds
-    setInterval(fetchBrainrotCount, 5000);
-    
-    // First load
-    fetchBrainrotCount();
-    </script>
-    
-    
+  <!-- Chart Modal -->
+  <div class="modal fade" id="chartModal" tabindex="-1" aria-labelledby="chartModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="chartModalLabel">Chart Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="chart-container" style="position: relative; height: 500px; width: 100%;">
+            <canvas id="modalChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
+  <!-- Main Content -->
+  <div class="container mt-4" id="dashboardContent">
+    {% if error %}
+      <div class="alert alert-danger" role="alert">
+        {{ error }}
+      </div>
+    {% endif %}
+
+    {% if not has_children %}
+      <div class="text-center py-5">
+        <h3 class="mb-4">Welcome to AIGIS Dashboard</h3>
+        <p class="lead mb-4">You haven't added any children yet. Add a child to start monitoring their online activity.</p>
+        <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addChildModal">
+          <i class="fas fa-plus me-2"></i>Add Your First Child
+        </button>
+      </div>
+    {% else %}
+      <!-- Summary Cards -->
+      <div class="row mb-4">
+        <div class="col-md-3">
+          <div class="card bg-primary text-white">
+            <div class="card-body">
+              <h5 class="card-title">
+                <i class="fas fa-exclamation-triangle me-2"></i>Total Detections
+              </h5>
+              <h2 class="card-text" id="totalDetections">0</h2>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card bg-danger text-white">
+            <div class="card-body">
+              <h5 class="card-title">
+                <i class="fas fa-radiation me-2"></i>High Risk
+              </h5>
+              <h2 class="card-text" id="highRiskCount">0</h2>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card bg-warning text-white">
+            <div class="card-body">
+              <h5 class="card-title">
+                <i class="fas fa-exclamation-circle me-2"></i>Medium Risk
+              </h5>
+              <h2 class="card-text" id="mediumRiskCount">0</h2>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card bg-success text-white">
+            <div class="card-body">
+              <h5 class="card-title">
+                <i class="fas fa-check-circle me-2"></i>Low Risk
+              </h5>
+              <h2 class="card-text" id="lowRiskCount">0</h2>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <div>
+                <i class="fas fa-chart-line me-2"></i>Detection Analytics
+              </div>
+              <button type="button" class="btn btn-primary btn-sm" onclick="openChartModal('detection')">
+                <i class="fas fa-chart-line me-1"></i>View Details
+              </button>
+            </div>
+            <div class="card-body">
+              <div class="chart-container" style="position: relative; height: 300px; width: 100%;">
+                <canvas id="detectionAnalyticsChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <div>
+                <i class="fas fa-user-clock me-2"></i>Usage Pattern
+              </div>
+              <button type="button" class="btn btn-primary btn-sm" onclick="openChartModal('usage')">
+                <i class="fas fa-chart-line me-1"></i>View Details
+              </button>
+            </div>
+            <div class="card-body">
+              <div class="chart-container" style="position: relative; height: 300px; width: 100%;">
+                <canvas id="usagePatternChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Flash Risk Overview -->
+      <div class="row mb-4">
+        <div class="col-md-12">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <div>
+                <i class="fas fa-bolt me-2"></i>Flashing Lights Risk Overview
+              </div>
+              <div class="d-flex align-items-center gap-3">
+                <div class="time-range-selector">
+                  <select id="flashTimeRange" class="form-select form-select-sm">
+                    <option value="30">Last 30 minutes</option>
+                    <option value="60">Last hour</option>
+                    <option value="180">Last 3 hours</option>
+                    <option value="360">Last 6 hours</option>
+                    <option value="720">Last 12 hours</option>
+                    <option value="1440">Last 24 hours</option>
+                  </select>
+                </div>
+                <button type="button" class="btn btn-primary btn-sm" onclick="openChartModal('flash')">
+                  <i class="fas fa-chart-line me-1"></i>View Details
+                </button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-4">
+                  <div class="risk-level-card text-center p-3">
+                    <h5 class="mb-2">Risk Level</h5>
+                    <div id="flashRiskLevel" class="risk-level-indicator">
+                      <span class="badge bg-success">Safe</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="confidence-card text-center p-3">
+                    <h5 class="mb-2">Average Confidence</h5>
+                    <div id="flashConfidence" class="confidence-value">
+                      <span class="h4">0%</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="detection-stats-card text-center p-3">
+                    <h5 class="mb-2">Detection Stats</h5>
+                    <div id="flashDetectionStats" class="detection-stats">
+                      <div>Positive: <span class="positive-count">0</span></div>
+                      <div>Total: <span class="total-count">0</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Communications Log -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <i class="fas fa-comments me-2"></i>Communications Log
+        </div>
+        <div class="card-body">
+          <div class="log-filters mb-3">
+            <button class="btn btn-outline-primary btn-sm active" data-filter="all">All</button>
+            <button class="btn btn-outline-primary btn-sm" data-filter="detection">Detections</button>
+            <button class="btn btn-outline-primary btn-sm" data-filter="request">Requests</button>
+            <button class="btn btn-outline-primary btn-sm" data-filter="response">Responses</button>
+          </div>
+          <div class="log-container" style="max-height: 400px; overflow-y: auto;">
+            <div id="communicationsList" class="log-entries">
+              <!-- Log entries will be added here dynamically -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Detections -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <i class="fas fa-list me-2"></i>Recent Detections
+        </div>
+        <div class="card-body">
+          <div id="detectionsList" class="detection-list">
+            <!-- Detections will be populated here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Text Analysis Section -->
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div>
+            <i class="fas fa-file-alt me-2"></i>Text Analysis
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" onclick="openChartModal('text')">
+            <i class="fas fa-chart-line me-1"></i>View Details
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <!-- RoBERTa Analysis -->
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header">
+                  <i class="fas fa-robot me-2"></i>RoBERTa Analysis
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <h6>Message Summary</h6>
+                    <div class="d-flex justify-content-between mb-2">
+                      <span>Total Messages:</span>
+                      <span id="robertaTotalMessages">0</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                      <span>Safe Messages:</span>
+                      <span id="robertaSafeCount" class="text-success">0</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                      <span>Offensive Messages:</span>
+                      <span id="robertaOffensiveCount" class="text-danger">0</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                      <span>Hate Messages:</span>
+                      <span id="robertaHateCount" class="text-danger">0</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                      <span>Skipped Messages:</span>
+                      <span id="robertaSkippedCount" class="text-warning">0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Gemini Analysis -->
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header">
+                  <i class="fas fa-brain me-2"></i>Gemini Analysis
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <h6>Risk Indicators</h6>
+                    <div class="d-flex justify-content-between mb-2">
+                      <span>Blackmail:</span>
+                      <span id="geminiBlackmail" class="text-success">No</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                      <span>Manipulative:</span>
+                      <span id="geminiManipulative" class="text-success">No</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                      <span>Meeting Attempt:</span>
+                      <span id="geminiMeetingAttempt" class="text-success">No</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                      <span>Potential Suicide:</span>
+                      <span id="geminiSuicide" class="text-success">No</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" 
+       style="background: rgba(0,0,0,0.5); z-index: 1000;">
+    <div class="d-flex justify-content-center align-items-center h-100">
+      <div class="spinner-border text-light" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize Bootstrap components
+      let chartModal, addChildModal;
+      
+      try {
+        const chartModalElement = document.getElementById('chartModal');
+        const addChildModalElement = document.getElementById('addChildModal');
+        
+        if (chartModalElement) {
+          chartModal = new bootstrap.Modal(chartModalElement);
+          console.log('Chart modal initialized');
+        } else {
+          console.warn('Chart modal element not found');
+        }
+        
+        if (addChildModalElement) {
+          addChildModal = new bootstrap.Modal(addChildModalElement);
+          console.log('Add child modal initialized');
+        } else {
+          console.warn('Add child modal element not found');
+        }
+      } catch (error) {
+        console.error('Error initializing modals:', error);
+      }
+      
+      // Get initial child ID from the template context
+      const childSelector = document.getElementById('childSelector');
+      const initialChildId = '{{ child_id }}'; // Get from Django template context
+      
+      console.log('Initial child ID from context:', initialChildId);
+      
+      if (!childSelector.value && initialChildId) {
+        childSelector.value = initialChildId;
+      }
+      
+      const childId = childSelector.value;
+      console.log('Selected child ID:', childId);
+      
+      if (!childId) {
+        console.error('No child ID available');
+        return;
+      }
+      
+      // Initialize dashboard
+      updateDashboard(childId);
+      
+      // Set up event listeners
+      if (childSelector) {
+        childSelector.addEventListener('change', function() {
+          console.log('Child selector changed to:', this.value);
+          if (this.value) {
+            updateDashboard(this.value);
+          } else {
+            console.error('No child selected');
+          }
+        });
+      }
+      
+      const refreshBtn = document.getElementById('refreshBtn');
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          const currentChildId = childSelector.value;
+          if (currentChildId) {
+            console.log('Manual refresh triggered for child:', currentChildId);
+            updateDashboard(currentChildId);
+          } else {
+            console.error('No child selected for refresh');
+          }
+        });
+      }
+      
+      document.getElementById('saveChildBtn').addEventListener('click', function() {
+        const name = document.getElementById('childName').value;
+        const age = document.getElementById('childAge').value;
+        
+        fetch('/monitoring/add-child/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+          },
+          body: JSON.stringify({ name, age })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            const select = document.getElementById('childSelector');
+            const option = new Option(name, data.child_id);
+            select.add(option);
+            select.value = data.child_id;
+            addChildModal.hide();
+            updateDashboard(data.child_id);
+          }
+        });
+      });
+      
+      // Set up periodic updates
+      setInterval(() => {
+        const currentChildId = childSelector.value;
+        if (currentChildId) {
+          console.log('Periodic update for child:', currentChildId);
+          updateDashboard(currentChildId);
+        }
+      }, 300000); // 5 minutes
+    });
+
+    // Helper function to get CSRF token
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+
+    // Chart instances
+    let detectionAnalyticsChart = null;
+    let usagePatternChart = null;
+    let modalChart = null;
+
+    // Format date for display
+    function formatDate(dateString) {
+      const options = { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      };
+      return new Date(dateString).toLocaleDateString('en-US', options);
+    }
+
+    // Get severity class
+    function getSeverityClass(severity) {
+      const classes = {
+        'high': 'severity-high',
+        'medium': 'severity-medium',
+        'low': 'severity-low'
+      };
+      return classes[severity.toLowerCase()] || '';
+    }
+
+    // Update summary cards
+    function updateSummaryCards(detections) {
+      const counts = {
+        total: detections.length,
+        high: detections.filter(d => d.risk_level >= 4).length,
+        medium: detections.filter(d => d.risk_level >= 2 && d.risk_level < 4).length,
+        low: detections.filter(d => d.risk_level < 2).length
+      };
+
+      document.getElementById('totalDetections').textContent = counts.total;
+      document.getElementById('highRiskCount').textContent = counts.high;
+      document.getElementById('mediumRiskCount').textContent = counts.medium;
+      document.getElementById('lowRiskCount').textContent = counts.low;
+
+      return counts;
+    }
+
+    // Update detection analytics chart
+    function updateDetectionAnalyticsChart(detections) {
+      console.log('Creating detection analytics chart with detections:', detections);
+      const ctx = document.getElementById('detectionAnalyticsChart');
+      if (!ctx) {
+        console.error('Detection analytics chart canvas not found');
+        return;
+      }
+      
+      if (detectionAnalyticsChart) {
+        console.log('Destroying existing detection analytics chart');
+        detectionAnalyticsChart.destroy();
+      }
+
+      // Group detections by 2-minute intervals
+      const groupedData = detections.reduce((acc, detection) => {
+        const date = new Date(detection.timestamp);
+        // Round to nearest 2 minutes
+        const minutes = Math.floor(date.getMinutes() / 2) * 2;
+        date.setMinutes(minutes, 0, 0);
+        const timeKey = date.toISOString();
+        
+        if (!acc[timeKey]) {
+          acc[timeKey] = {
+            violence: { sum: 0, count: 0 },
+            brainrot: { sum: 0, count: 0 },
+            deepfake: { sum: 0, count: 0 }
+          };
+        }
+        
+        // Process each detection type
+        if (detection.type === 'video') {
+          const subtype = detection.subtype;
+          if (subtype === 'violence' && acc[timeKey].violence) {
+            acc[timeKey].violence.sum += detection.confidence;
+            acc[timeKey].violence.count++;
+          } else if (subtype === 'brainrot' && acc[timeKey].brainrot) {
+            acc[timeKey].brainrot.sum += detection.confidence;
+            acc[timeKey].brainrot.count++;
+          } else if (subtype === 'deepfake' && acc[timeKey].deepfake) {
+            acc[timeKey].deepfake.sum += detection.confidence;
+            acc[timeKey].deepfake.count++;
+          }
+        }
+        
+        return acc;
+      }, {});
+
+      // Calculate averages and prepare data
+      const timeLabels = Object.keys(groupedData).sort();
+      const violenceData = timeLabels.map(time => {
+        const data = groupedData[time].violence;
+        return data.count > 0 ? data.sum / data.count : 0;
+      });
+      const brainrotData = timeLabels.map(time => {
+        const data = groupedData[time].brainrot;
+        return data.count > 0 ? data.sum / data.count : 0;
+      });
+      const deepfakeData = timeLabels.map(time => {
+        const data = groupedData[time].deepfake;
+        return data.count > 0 ? data.sum / data.count : 0;
+      });
+
+      try {
+        detectionAnalyticsChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: timeLabels.map(time => new Date(time).toLocaleTimeString()),
+            datasets: [
+              {
+                label: 'Violence',
+                data: violenceData,
+                borderColor: '#dc3545',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                tension: 0.4,
+                fill: true
+              },
+              {
+                label: 'Brainrot',
+                data: brainrotData,
+                borderColor: '#0d6efd',
+                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                tension: 0.4,
+                fill: true
+              },
+              {
+                label: 'Deepfake',
+                data: deepfakeData,
+                borderColor: '#6f42c1',
+                backgroundColor: 'rgba(111, 66, 193, 0.1)',
+                tension: 0.4,
+                fill: true
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom'
+              },
+              tooltip: {
+                mode: 'index',
+                intersect: false
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                max: 1,
+                ticks: {
+                  callback: value => `${(value * 100).toFixed(0)}%`
+                }
+              }
+            }
+          }
+        });
+        console.log('Detection analytics chart created successfully');
+      } catch (error) {
+        console.error('Error creating detection analytics chart:', error);
+      }
+    }
+
+    // Update usage pattern chart
+    function updateUsagePatternChart(patterns) {
+      console.log('Creating usage pattern chart with patterns:', patterns);
+      const ctx = document.getElementById('usagePatternChart');
+      if (!ctx) {
+        console.error('Usage pattern chart canvas not found');
+        return;
+      }
+      
+      if (usagePatternChart) {
+        console.log('Destroying existing usage pattern chart');
+        usagePatternChart.destroy();
+      }
+
+      // Group patterns by 2-minute intervals
+      const groupedData = patterns.reduce((acc, pattern) => {
+        const date = new Date(pattern.timestamp);
+        // Round to nearest 2 minutes
+        const minutes = Math.floor(date.getMinutes() / 2) * 2;
+        date.setMinutes(minutes, 0, 0);
+        const timeKey = date.toISOString();
+        
+        if (!acc[timeKey]) {
+          acc[timeKey] = {
+            duration: 0,
+            behavior: pattern.behavior
+          };
+        }
+        
+        acc[timeKey].duration += pattern.engagementDuration;
+        return acc;
+      }, {});
+
+      const timeLabels = Object.keys(groupedData).sort();
+      const durationData = timeLabels.map(time => groupedData[time].duration);
+      const behaviorData = timeLabels.map(time => groupedData[time].behavior);
+
+      // Define behavior colors
+      const behaviorColors = {
+        'normal': '#28a745',
+        'distracted': '#ffc107',
+        'restless': '#fd7e14',
+        'distressed': '#dc3545'
+      };
+
+      try {
+        usagePatternChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: timeLabels.map(time => new Date(time).toLocaleTimeString()),
+            datasets: [{
+              label: 'Engagement Duration',
+              data: durationData,
+              borderColor: '#0d6efd',
+              backgroundColor: 'rgba(13, 110, 253, 0.1)',
+              tension: 0.4,
+              fill: true,
+              pointBackgroundColor: timeLabels.map((_, index) => 
+                behaviorColors[behaviorData[index]] || '#6c757d'
+              )
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  generateLabels: function(chart) {
+                    return Object.entries(behaviorColors).map(([behavior, color]) => ({
+                      text: behavior.charAt(0).toUpperCase() + behavior.slice(1),
+                      fillStyle: color,
+                      strokeStyle: color,
+                      lineWidth: 2
+                    }));
+                  }
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const index = context.dataIndex;
+                    return [
+                      `Duration: ${context.raw} seconds`,
+                      `Behavior: ${behaviorData[index].charAt(0).toUpperCase() + behaviorData[index].slice(1)}`
+                    ];
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: 'Duration (seconds)'
+                }
+              }
+            }
+          }
+        });
+        console.log('Usage pattern chart created successfully');
+      } catch (error) {
+        console.error('Error creating usage pattern chart:', error);
+      }
+    }
+
+    // Update modal chart based on type
+    function updateModalChart(chartType) {
+      const ctx = document.getElementById('modalChart');
+      if (!ctx) {
+        console.error('Modal chart canvas not found');
+        return;
+      }
+
+      if (modalChart) {
+        modalChart.destroy();
+      }
+
+      if (chartType === 'detection') {
+        // Clone the detection analytics chart data and options
+        const data = detectionAnalyticsChart.data;
+        const options = {
+          ...detectionAnalyticsChart.options,
+          maintainAspectRatio: false
+        };
+        modalChart = new Chart(ctx, {
+          type: 'line',
+          data: data,
+          options: options
+        });
+      } else if (chartType === 'usage') {
+        // Clone the usage pattern chart data and options
+        const data = usagePatternChart.data;
+        const options = {
+          ...usagePatternChart.options,
+          maintainAspectRatio: false
+        };
+        modalChart = new Chart(ctx, {
+          type: 'line',
+          data: data,
+          options: options
+        });
+      }
+    }
+
+    // Update text analysis section
+    function updateTextAnalysis(textData) {
+      if (!textData) return;
+
+      // Update RoBERTa analysis
+      if (textData.roberta_classification) {
+        const summary = textData.roberta_classification.summary;
+            document.getElementById('robertaTotalMessages').textContent = textData.roberta_classification.total_messages || 0;
+            document.getElementById('robertaSafeCount').textContent = summary.safe_count || 0;
+            document.getElementById('robertaOffensiveCount').textContent = summary.offensive_count || 0;
+            document.getElementById('robertaHateCount').textContent = summary.hate_count || 0;
+            document.getElementById('robertaSkippedCount').textContent = summary.skipped_count || 0;
+
+        // Update colors based on counts
+        const updateCountColor = (elementId, count) => {
+          const element = document.getElementById(elementId);
+          if (count > 0) {
+            element.className = elementId.includes('Safe') ? 'text-success' : 'text-danger';
+          } else {
+            element.className = 'text-success';
+          }
+        };
+
+        updateCountColor('robertaOffensiveCount', summary.offensive_count);
+        updateCountColor('robertaHateCount', summary.hate_count);
+      }
+
+      // Update Gemini analysis
+      if (textData.gemini_classification) {
+        const updateGeminiIndicator = (elementId, value) => {
+          const element = document.getElementById(elementId);
+          element.textContent = value ? 'Yes' : 'No';
+          element.className = value ? 'text-danger' : 'text-success';
+        };
+
+        updateGeminiIndicator('geminiBlackmail', textData.gemini_classification.blackmail);
+        updateGeminiIndicator('geminiManipulative', textData.gemini_classification.manipulative);
+        updateGeminiIndicator('geminiMeetingAttempt', textData.gemini_classification.meeting_attempt);
+        updateGeminiIndicator('geminiSuicide', textData.gemini_classification.potential_suicide);
+      }
+    }
+
+    // Update dashboard with data for selected child
+    async function updateDashboard(childId) {
+      if (!childId) {
+        console.error('No child ID provided to updateDashboard');
+        return;
+      }
+
+      try {
+        console.log('Updating dashboard for child:', childId);
+        document.getElementById('loadingOverlay').classList.remove('d-none');
+        
+        // Fetch detection data
+        const detectionResponse = await fetch(`/monitoring/detection-data/?child_id=${childId}`);
+        if (!detectionResponse.ok) {
+          throw new Error(`Failed to fetch detection data: ${detectionResponse.status}`);
+        }
+        const detectionData = await detectionResponse.json();
+        
+        // Fetch usage pattern data
+        const usageResponse = await fetch(`/monitoring/usage-pattern/?child_id=${childId}`);
+        if (!usageResponse.ok) {
+          throw new Error(`Failed to fetch usage pattern data: ${usageResponse.status}`);
+        }
+        const usageData = await usageResponse.json();
+        
+        console.log('Received detection data:', detectionData);
+        console.log('Received usage data:', usageData);
+        
+        if (detectionData.error) {
+          throw new Error(detectionData.error);
+        }
+        
+        // Update summary cards
+        updateSummaryCards(detectionData.recent);
+        
+        // Update charts
+        if (detectionData.recent && detectionData.recent.length > 0) {
+          console.log('Updating detection analytics chart');
+          updateDetectionAnalyticsChart(detectionData.recent);
+        }
+        
+        if (usageData.patterns && usageData.patterns.length > 0) {
+          console.log('Updating usage pattern chart');
+          updateUsagePatternChart(usageData.patterns);
+        }
+        
+        // Update text analysis
+        if (detectionData.text_classification) {
+          console.log('Updating text analysis');
+          updateTextAnalysis(detectionData.text_classification);
+        }
+        
+        // Update flash risk overview
+        updateFlashRiskOverview(childId);
+        
+        // Update detections list
+        updateDetectionsList(detectionData.recent);
+        
+      } catch (error) {
+        console.error('Error updating dashboard:', error);
+        alert('Failed to update dashboard: ' + error.message);
+      } finally {
+        document.getElementById('loadingOverlay').classList.add('d-none');
+      }
+    }
+
+    // Update flash risk overview
+    function updateFlashRiskOverview(childId) {
+      const timeRange = document.getElementById('flashTimeRange').value;
+      const minutes = parseInt(timeRange);
+      
+      fetch(`/monitoring/detection-data/?child_id=${childId}`)
+        .then(response => response.json())
+        .then(data => {
+          const now = new Date();
+          const timeThreshold = new Date(now - minutes * 60 * 1000);
+          
+          // Filter flash detections within time range
+          const flashDetections = data.recent.filter(d => 
+            d.type === 'flash' && 
+            new Date(d.timestamp) >= timeThreshold
+          );
+
+          // Calculate statistics
+          const totalDetections = flashDetections.length;
+          const positiveDetections = flashDetections.filter(d => 
+            d.result.is_epilepsy_trigger
+          ).length;
+          
+          const avgConfidence = flashDetections.length > 0 
+            ? flashDetections.reduce((sum, d) => sum + d.confidence, 0) / flashDetections.length 
+            : 0;
+
+          // Update risk level
+          const riskLevel = document.getElementById('flashRiskLevel');
+          let riskClass = 'bg-success';
+          let riskText = 'Safe';
+          
+          if (totalDetections > 0) {
+            const riskPercentage = (positiveDetections / totalDetections) * 100;
+            if (riskPercentage >= 50) {
+              riskClass = 'bg-danger';
+              riskText = 'High Risk';
+            } else if (riskPercentage >= 20) {
+              riskClass = 'bg-warning';
+              riskText = 'Moderate Risk';
+            }
+          }
+          
+          riskLevel.innerHTML = `<span class="badge ${riskClass}">${riskText}</span>`;
+
+          // Update confidence
+          document.getElementById('flashConfidence').innerHTML = 
+            `<span class="h4">${(avgConfidence * 100).toFixed(1)}%</span>`;
+
+          // Update detection stats
+          document.querySelector('.positive-count').textContent = positiveDetections;
+          document.querySelector('.total-count').textContent = totalDetections;
+        })
+        .catch(error => console.error('Error updating flash risk overview:', error));
+    }
+
+    // Update detections list
+    function updateDetectionsList(detections) {
+      const container = document.getElementById('detectionsList');
+      container.innerHTML = '';
+
+      // Define section icons and colors
+      const sections = {
+        'audio': { icon: 'fa-microphone', color: '#9b59b6' },
+        'behavior': { icon: 'fa-user', color: '#3498db' },
+        'nudity': { icon: 'fa-eye', color: '#e74c3c' },
+        'text': { icon: 'fa-file-alt', color: '#2ecc71' },
+        'usage': { icon: 'fa-chart-line', color: '#f1c40f' },
+        'video': { icon: 'fa-video', color: '#e67e22' },
+        'flash': { icon: 'fa-bolt', color: '#f39c12' }
+      };
+
+      detections.slice(0, 10).forEach(detection => {
+        const section = detection.type || 'general';
+        const sectionInfo = sections[section] || { icon: 'fa-question', color: '#95a5a6' };
+        
+        const card = document.createElement('div');
+        card.className = `detection-card ${getSeverityClass(detection.risk_level >= 4 ? 'high' : detection.risk_level >= 2 ? 'medium' : 'low')}`;
+        card.innerHTML = `
+          <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+              <div class="d-flex align-items-center mb-2">
+                <span class="section-badge me-2" style="background-color: ${sectionInfo.color}">
+                  <i class="fas ${sectionInfo.icon}"></i>
+                </span>
+                <h5 class="mb-0">${detection.type}</h5>
+              </div>
+              <p class="text-muted mb-2">
+                <i class="fas fa-clock me-1"></i>${formatDate(detection.timestamp)}
+              </p>
+              <p class="mb-0">${detection.result.description || 'No description available'}</p>
+              ${detection.details ? `
+                <div class="mt-2 details-section">
+                  <small class="text-muted">Details:</small>
+                  <pre class="details-content">${JSON.stringify(detection.details, null, 2)}</pre>
+                </div>
+              ` : ''}
+            </div>
+            <div class="ms-3 text-end">
+              <span class="badge bg-${detection.risk_level >= 4 ? 'danger' : detection.risk_level >= 2 ? 'warning' : 'success'} mb-2">
+                ${detection.risk_level >= 4 ? 'High' : detection.risk_level >= 2 ? 'Medium' : 'Low'} Risk
+              </span>
+              <div class="section-label" style="color: ${sectionInfo.color}">
+                ${section.charAt(0).toUpperCase() + section.slice(1)}
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // Function to open chart modal
+    function openChartModal(chartType) {
+      try {
+        const modal = document.getElementById('chartModal');
+        if (!modal) {
+          console.error('Chart modal element not found');
+          return;
+        }
+        
+        const modalInstance = bootstrap.Modal.getInstance(modal) || new bootstrap.Modal(modal);
+        modalInstance.show();
+        
+        // Update modal title based on chart type
+        const modalTitle = document.getElementById('chartModalLabel');
+        if (modalTitle) {
+          modalTitle.textContent = `${chartType.charAt(0).toUpperCase() + chartType.slice(1)} Chart Details`;
+        }
+        
+        // Update chart data based on type
+        updateModalChart(chartType);
+      } catch (error) {
+        console.error('Error opening chart modal:', error);
+      }
+    }
+  </script>
 </body>
 </html>
+

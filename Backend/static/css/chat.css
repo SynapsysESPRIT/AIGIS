@@ -1,0 +1,118 @@
+.chat-container {
+    border: 1px solid #ffc0cb;
+    border-radius: 15px;
+    padding: 15px;
+    background-color: #fff5f7;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+.question-bubble {
+    background-color: #e6f7ff;
+    border-radius: 15px;
+    padding: 12px;
+    margin: 8px 0 8px auto;
+    max-width: 80%;
+    display: inline-block;
+    float: right;
+    clear: both;
+    font-size: 1.1em;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.answer-bubble {
+    background-color: #fff0f5;
+    border-radius: 15px;
+    padding: 12px;
+    margin: 8px auto 8px 0;
+    max-width: 80%;
+    display: inline-block;
+    float: left;
+    clear: both;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    font-size: 1.1em;
+    border-left: 4px solid #ffc0cb;
+}
+
+.sources-bubble {
+    background-color: #f9f2f4;
+    border-radius: 10px;
+    padding: 8px;
+    margin: 5px auto 15px 20px;
+    max-width: 75%;
+    display: inline-block;
+    float: left;
+    clear: both;
+    font-size: 0.8em;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.status-ready {
+    color: #4caf50;
+    font-weight: bold;
+}
+
+.status-not-ready {
+    color: #ff9800;
+    font-weight: bold;
+}
+
+.mom-helper-title {
+    font-family: 'Comic Sans MS', cursive, sans-serif;
+    color: #ff69b4;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Audio controls styling */
+.btn-outline-success {
+    border-color: #28a745;
+    color: #28a745;
+}
+
+.btn-outline-success:hover {
+    background-color: #28a745;
+    color: white;
+}
+
+.btn-outline-danger {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.btn-outline-danger:hover {
+    background-color: #dc3545;
+    color: white;
+}
+
+/* Input group styling */
+.input-group {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.form-control:focus {
+    border-color: #ffc0cb;
+    box-shadow: 0 0 0 0.2rem rgba(255, 192, 203, 0.25);
+}
+
+/* Card styling */
+.card {
+    border: none;
+    border-radius: 15px;
+}
+
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+    background: linear-gradient(135deg, #ff69b4, #ff1493) !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+
+    .question-bubble,
+    .answer-bubble {
+        max-width: 90%;
+    }
+
+    .sources-bubble {
+        max-width: 85%;
+    }
+}

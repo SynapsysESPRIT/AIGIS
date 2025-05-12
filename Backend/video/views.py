@@ -341,6 +341,11 @@ def detect_epilepsy(request):
             detect_epilepsy.last_brightness = None
             detect_epilepsy.flash_count = 0
             detect_epilepsy.last_flash_time = 0
+            detect_epilepsy.frame_count = 0
+            detect_epilepsy.last_conclusion_time = 0
+        
+        detect_epilepsy.frame_count += 1
+        current_time = time.time()
         
         # Calculate brightness change
         if detect_epilepsy.last_brightness is not None:
@@ -348,7 +353,6 @@ def detect_epilepsy(request):
             
             # Detect flash (significant brightness change)
             if brightness_change > 50:  # Threshold for flash detection
-                current_time = time.time()
                 # Only count flashes that are at least 100ms apart
                 if current_time - detect_epilepsy.last_flash_time > 0.1:
                     detect_epilepsy.flash_count += 1
@@ -357,12 +361,12 @@ def detect_epilepsy(request):
                     # If we detect 3 or more flashes in 1 second, consider it dangerous
                     if detect_epilepsy.flash_count >= 3:
                         detect_epilepsy.flash_count = 0  # Reset counter
+                        detect_epilepsy.last_conclusion_time = current_time
                         return JsonResponse({
                             'is_epilepsy_trigger': True,
                             'result': 'Flashing Lights Detected',
                             'confidence': 1.0,
-                            'brightness_change': float(brightness_change),
-                            'frame_count': len(detect_epilepsy.brightness_list),
+                            'frame_count': detect_epilepsy.frame_count,
                             'status': 'analyzed'
                         })
         
@@ -373,14 +377,21 @@ def detect_epilepsy(request):
         if len(detect_epilepsy.brightness_list) > 30:
             detect_epilepsy.brightness_list = detect_epilepsy.brightness_list[-30:]
         
-        # Return collecting status
+        # If no flashes detected in the last 2 seconds, return a conclusion
+        if current_time - detect_epilepsy.last_conclusion_time > 2.0:
+            detect_epilepsy.last_conclusion_time = current_time
+            return JsonResponse({
+                'is_epilepsy_trigger': False,
+                'result': 'No Flashing Lights Detected',
+                'confidence': 1.0,
+                'frame_count': detect_epilepsy.frame_count,
+                'status': 'analyzed'
+            })
+        
+        # Return minimal response for frames being analyzed
         return JsonResponse({
             'is_epilepsy_trigger': False,
-            'result': f'Monitoring ({len(detect_epilepsy.brightness_list)} frames)',
-            'confidence': 0.0,
-            'brightness_change': float(brightness_change) if detect_epilepsy.last_brightness is not None else 0.0,
-            'frame_count': len(detect_epilepsy.brightness_list),
-            'status': 'collecting'
+            'status': 'analyzing'
         })
         
     except json.JSONDecodeError:

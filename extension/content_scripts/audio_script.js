@@ -232,6 +232,15 @@
                 console.log(`Emotion: ${result.sentiment.emotion}`);
                 console.log(`Confidence: ${result.sentiment.confidence}%`);
                 console.log('Probabilities:', result.sentiment.probabilities);
+                // Send to popup
+                chrome.runtime.sendMessage({
+                    type: 'audioSentimentResult',
+                    result: {
+                        emotion: result.sentiment.emotion,
+                        confidence: result.sentiment.confidence,
+                        probabilities: result.sentiment.probabilities
+                    }
+                });
             } else {
                 console.log('No sentiment data received.');
             }

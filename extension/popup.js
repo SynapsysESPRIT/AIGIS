@@ -205,13 +205,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.log('Current pattern:', pattern);
 
                 // Update metrics display
-                document.getElementById('scroll-frequency').textContent = 
+                document.getElementById('scroll-frequency').textContent =
                     `${pattern.scrollFrequency.toFixed(1)}/min`;
-                document.getElementById('scroll-speed').textContent = 
+                document.getElementById('scroll-speed').textContent =
                     `${pattern.averageScrollSpeed.toFixed(0)} px/s`;
-                document.getElementById('engagement-duration').textContent = 
+                document.getElementById('engagement-duration').textContent =
                     `${(pattern.engagementDuration / 1000).toFixed(0)}s`;
-                document.getElementById('behavior-pattern').textContent = 
+                document.getElementById('behavior-pattern').textContent =
                     pattern.behavior.charAt(0).toUpperCase() + pattern.behavior.slice(1);
 
                 let message = '';
@@ -841,271 +841,233 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    function updateVideoResults(data) {
-        console.log('[popup.js] updateVideoResults called with:', data);
-        // Update Brainrot Results
-        const brainrotResults = document.getElementById('brainrot-results');
-        const lastCheckTime = document.getElementById('last-check-time');
-        const brainrotConfidence = document.getElementById('brainrot-confidence');
+    // Function to send detection data to backend
+    async function sendDetectionToBackend(data) {
+        try {
+            // Get the active child ID from storage
+            const { activeChildId } = await chrome.storage.local.get('activeChildId');
+            if (!activeChildId) {
+                console.error('No active child ID found');
+                return;
+            }
 
+            console.log('Sending detection to backend:', {
+                childId: activeChildId,
+                type: data.type,
+                result: data.result
+            });
+
+            // Handle video detection results
+            if (data.type === 'video') {
+                // Send each video detection type separately
+                if (data.result.brainrot) {
+                    await sendVideoDetection(activeChildId, 'video', {
+                        brainrot: {
+                            is_brainrot: data.result.brainrot.is_brainrot,
+                            confidence: data.result.brainrot.confidence
+                        }
+                    });
+                }
+                if (data.result.violence) {
+                    await sendVideoDetection(activeChildId, 'video', {
+                        violence: {
+                            is_violence: data.result.violence.is_violence,
+                            confidence: data.result.violence.confidence
+                        }
+                    });
+                }
+                if (data.result.deepfake) {
+                    await sendVideoDetection(activeChildId, 'video', {
+                        deepfake: {
+                            is_deepfake: data.result.deepfake.is_deepfake,
+                            confidence: data.result.deepfake.confidence
+                        }
+                    });
+                }
+                return;
+            }
+
+            // Send other detection types
+            const detectionData = {
+                child_id: activeChildId,
+                type: data.type,
+                result: data.result
+            };
+
+            const response = await fetch('http://127.0.0.1:8000/monitoring/log-detection/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(detectionData)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            console.log('Detection logged successfully:', result);
+        } catch (error) {
+            console.error('Error sending detection to backend:', error);
+        }
+    }
+
+    async function sendVideoDetection(childId, type, result) {
+        try {
+            const detectionData = {
+                child_id: childId,
+                type: type,
+                result: result
+            };
+
+            console.log('Sending video detection:', detectionData);
+
+            const response = await fetch('http://127.0.0.1:8000/monitoring/log-detection/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(detectionData)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Failed to send video detection:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    error: errorText
+                });
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            console.log('Video detection logged successfully:', result);
+        } catch (error) {
+            console.error('Error sending video detection:', error);
+        }
+    }
+
+    // Update the message listener to handle video results
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        console.log('Popup received message:', message);
+
+        switch (message.type) {
+            case 'VIDEO_ANALYSIS_RESULTS':
+                console.log('Processing video analysis results:', message.data);
+                state.video = message.data;
+                updateVideoResults(message.data);
+                // Send video detection results to backend
+                sendDetectionToBackend({
+                    type: 'video',
+                    result: message.data
+                });
+                break;
+            case 'audioSentimentResult':
+                console.log('Processing audio sentiment result:', message.result);
+                state.audio = message.result;
+                updateAudioResults(state.audio);
+                sendDetectionToBackend(state.audio);
+                break;
+            case 'pattern_update':
+                console.log('Processing pattern update:', message.data);
+                state.behavior = message.data;
+                updateBehaviorResults(state.behavior);
+                updateUsageResults(message.data);
+                sendDetectionToBackend(state.behavior);
+                break;
+            case 'nudityDetectionResult':
+                console.log('Processing nudity detection result:', message.result);
+                state.content = message.result;
+                updateContentResults(state.content);
+                sendDetectionToBackend(state.content);
+                break;
+            case 'textClassificationResults':
+                console.log('Processing text classification results:', message.results);
+                state.text = message.results;
+                displayTextResults(message.results);
+                sendDetectionToBackend(state.text);
+                break;
+            case 'usagePatternResult':
+                console.log('Processing usage pattern result:', message.result);
+                state.usage = message.result;
+                updateUsageResults(state.usage);
+                sendDetectionToBackend(state.usage);
+                break;
+            case 'behavior_warning':
+                console.log('Processing behavior warning:', message.data);
+                displayBehaviorWarning(message.data);
+                break;
+        }
+    });
+
+    // Update the video results function to handle timestamps and confidence
+    function updateVideoResults(data) {
+        console.log('Updating video results with:', data);
+
+        // Update Brainrot Results
         if (data.brainrot) {
-            brainrotResults.innerHTML = `
+            const brainrotResults = document.getElementById('brainrot-results');
+            const lastCheckTime = document.getElementById('last-check-time');
+            const brainrotConfidence = document.getElementById('brainrot-confidence');
+
+            if (brainrotResults) {
+                brainrotResults.innerHTML = `
                 <div class="result ${data.brainrot.is_brainrot ? 'danger' : 'safe'}">
                     <span class="result-icon">${data.brainrot.is_brainrot ? '⚠️' : '✅'}</span>
                     <span>${data.brainrot.is_brainrot ? 'Brainrot content detected' : 'No brainrot content detected'}</span>
                 </div>
             `;
-            lastCheckTime.textContent = new Date().toLocaleTimeString();
+            }
+            if (lastCheckTime) lastCheckTime.textContent = new Date().toLocaleTimeString();
             if (brainrotConfidence) brainrotConfidence.textContent = `${(data.brainrot.confidence * 100).toFixed(1)}%`;
         }
 
         // Update Violence Results
-        const violenceResults = document.getElementById('violence-results');
-        const violenceLastCheck = document.getElementById('violence-last-check');
-        const violenceConfidence = document.getElementById('violence-confidence');
-
         if (data.violence) {
-            violenceResults.innerHTML = `
+            const violenceResults = document.getElementById('violence-results');
+            const violenceLastCheck = document.getElementById('violence-last-check');
+            const violenceConfidence = document.getElementById('violence-confidence');
+
+            if (violenceResults) {
+                violenceResults.innerHTML = `
                 <div class="result ${data.violence.is_violence ? 'danger' : 'safe'}">
                     <span class="result-icon">${data.violence.is_violence ? '⚠️' : '✅'}</span>
                     <span>${data.violence.is_violence ? 'Violence detected' : 'No violence detected'}</span>
                 </div>
             `;
-            violenceLastCheck.textContent = new Date().toLocaleTimeString();
-            violenceConfidence.textContent = `${(data.violence.confidence * 100).toFixed(1)}%`;
+            }
+            if (violenceLastCheck) violenceLastCheck.textContent = new Date().toLocaleTimeString();
+            if (violenceConfidence) violenceConfidence.textContent = `${(data.violence.confidence * 100).toFixed(1)}%`;
         }
 
         // Update Deepfake Results
-        const deepfakeResults = document.getElementById('deepfake-results');
-        const deepfakeLastCheck = document.getElementById('deepfake-last-check');
-        const deepfakeConfidence = document.getElementById('deepfake-confidence');
-
         if (data.deepfake) {
-            deepfakeResults.innerHTML = `
+            const deepfakeResults = document.getElementById('deepfake-results');
+            const deepfakeLastCheck = document.getElementById('deepfake-last-check');
+            const deepfakeConfidence = document.getElementById('deepfake-confidence');
+
+            if (deepfakeResults) {
+                deepfakeResults.innerHTML = `
                 <div class="result ${data.deepfake.is_deepfake ? 'danger' : 'safe'}">
                     <span class="result-icon">${data.deepfake.is_deepfake ? '⚠️' : '✅'}</span>
                     <span>${data.deepfake.is_deepfake ? 'Deepfake detected' : 'No deepfake detected'}</span>
                 </div>
             `;
-            deepfakeLastCheck.textContent = new Date().toLocaleTimeString();
-            deepfakeConfidence.textContent = `${(data.deepfake.confidence * 100).toFixed(1)}%`;
-        }
-    }
-
-    // Update the message listener to handle all video analysis types
-    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-        if (request.type === 'VIDEO_ANALYSIS_RESULTS') {
-            console.log('[popup.js] Received VIDEO_ANALYSIS_RESULTS:', request.data);
-            updateVideoResults(request.data);
-        }
-    });
-
-    // Handle companion changes
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-        if (message.type === 'companion_changed') {
-            updateCompanionSprite(message.companion);
-        }
-    });
-
-    function updateCompanionSprite(companion) {
-        const companionSprite = document.getElementById('companion-sprite');
-        if (companionSprite) {
-            // Get current pattern status
-            chrome.storage.local.get(['currentPattern'], (result) => {
-                const pattern = result.currentPattern;
-                let spriteState = 'happy';
-
-                if (pattern) {
-                    if (pattern.doomscrollingRate > 0.5 || pattern.violenceRate > 0.5) {
-                        spriteState = 'sad';
-                    } else if (pattern.doomscrollingRate < 0.2 && pattern.violenceRate < 0.2) {
-                        spriteState = 'sleepy';
-                    }
-                }
-
-                companionSprite.src = companion.sprites[spriteState];
-            });
-        }
-    }
-
-    // Initialize companion sprite
-    chrome.storage.local.get(['currentCompanion'], (result) => {
-        const companion = result.currentCompanion || {
-            sprites: {
-                happy: 'sprites/owl/happy.gif',
-                sad: 'sprites/owl/sad.gif',
-                sleepy: 'sprites/owl/sleepy.gif',
-                touched: 'sprites/owl/touched.gif'
             }
-        };
-        updateCompanionSprite(companion);
-    });
-
-    // Dashboard functionality
-    let dashboardData = {
-        lastUpdate: null,
-        currentStatus: null,
-        dailySummary: {
-            totalViolence: 0,
-            totalDoomscroll: 0,
-            totalTime: 0,
-            statusChanges: []
-        },
-        historicalData: []
-    };
-
-    // Initialize dashboard
-    function initDashboard() {
-        const dashboardToggle = document.getElementById('dashboard-toggle');
-        const dashboardSection = document.getElementById('dashboard-section');
-
-        dashboardToggle.addEventListener('click', () => {
-            dashboardSection.style.display = dashboardSection.style.display === 'none' ? 'block' : 'none';
-            if (dashboardSection.style.display === 'block') {
-                updateDashboard();
-            }
-        });
-
-        // Load saved dashboard data
-        chrome.storage.local.get(['dashboardData'], (result) => {
-            if (result.dashboardData) {
-                dashboardData = result.dashboardData;
-            }
-        });
-
-        // Update dashboard every hour
-        setInterval(updateDashboard, 3600000);
-    }
-
-    // Update dashboard data
-    function updateDashboard() {
-        const now = new Date();
-        const lastUpdate = document.getElementById('last-update-time');
-        const nextUpdate = document.getElementById('next-update-time');
-        const currentStatus = document.getElementById('current-status');
-        const dailySummary = document.getElementById('daily-summary');
-        const historicalData = document.getElementById('historical-data');
-
-        // Update timestamps
-        lastUpdate.textContent = now.toLocaleTimeString();
-        nextUpdate.textContent = new Date(now.getTime() + 3600000).toLocaleTimeString();
-
-        // Get current pattern
-        chrome.storage.local.get(['currentPattern'], (result) => {
-            const pattern = result.currentPattern;
-            if (pattern) {
-                // Update current status
-                currentStatus.innerHTML = `
-                    <div class="result ${pattern.status}">
-                        <span class="result-icon">${pattern.status === 'good' ? '🌟' : pattern.status === 'bad' ? '⚠️' : '📊'}</span>
-                        <span>${pattern.status === 'good' ? 'Good browsing patterns' :
-                        pattern.status === 'bad' ? 'Negative patterns detected' :
-                            'Stable browsing patterns'}</span>
-                        <div class="pattern-metrics">
-                            <div>Doomscroll Rate: ${pattern.doomscrollRate.toFixed(2)}/min</div>
-                            <div>Violence Rate: ${pattern.violenceRate.toFixed(2)}/min</div>
-                        </div>
-                    </div>
-                `;
-
-                // Update daily summary
-                dashboardData.dailySummary.totalViolence += pattern.violenceRate;
-                dashboardData.dailySummary.totalDoomscroll += pattern.doomscrollRate;
-                dashboardData.dailySummary.totalTime += 1;
-                dashboardData.dailySummary.statusChanges.push({
-                    time: now,
-                    status: pattern.status
-                });
-
-                dailySummary.innerHTML = `
-                    <div class="stat-item">
-                        <span class="stat-label">Total Violence Incidents:</span>
-                        <span class="stat-value">${dashboardData.dailySummary.totalViolence.toFixed(2)}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Total Doomscroll Time:</span>
-                        <span class="stat-value">${dashboardData.dailySummary.totalDoomscroll.toFixed(2)} minutes</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Total Monitoring Time:</span>
-                        <span class="stat-value">${dashboardData.dailySummary.totalTime} hours</span>
-                    </div>
-                `;
-
-                // Update historical data
-                dashboardData.historicalData.push({
-                    time: now,
-                    pattern: pattern
-                });
-
-                // Keep only last 24 hours of data
-                const oneDayAgo = new Date(now.getTime() - 24 * 3600000);
-                dashboardData.historicalData = dashboardData.historicalData.filter(item =>
-                    new Date(item.time) > oneDayAgo
-                );
-
-                // Display historical data
-                historicalData.innerHTML = dashboardData.historicalData.map(item => `
-                    <div class="history-item">
-                        <div class="history-time">${new Date(item.time).toLocaleTimeString()}</div>
-                        <div class="history-status">
-                            <span class="result-icon">${item.pattern.status === 'good' ? '🌟' :
-                        item.pattern.status === 'bad' ? '⚠️' : '📊'}</span>
-                            <span>${item.pattern.status === 'good' ? 'Good' :
-                        item.pattern.status === 'bad' ? 'Bad' : 'Stable'}</span>
-                        </div>
-                    </div>
-                `).join('');
-
-                // Save updated dashboard data
-                chrome.storage.local.set({ dashboardData });
-            }
-        });
-    }
-
-    // Initialize dashboard button
-    function initDashboardButton() {
-        const dashboardToggle = document.getElementById('dashboard-toggle');
-        if (dashboardToggle) {
-            dashboardToggle.addEventListener('click', () => {
-                console.log('Opening dashboard...');
-                chrome.tabs.create({
-                    url: chrome.runtime.getURL('dashboard.html'),
-                    active: true
-                });
-            });
+            if (deepfakeLastCheck) deepfakeLastCheck.textContent = new Date().toLocaleTimeString();
+            if (deepfakeConfidence) deepfakeConfidence.textContent = `${(data.deepfake.confidence * 100).toFixed(1)}%`;
         }
     }
 
-    // Initialize when popup loads
+    // Initialize UI with current state
     document.addEventListener('DOMContentLoaded', () => {
-        console.log('Popup loaded, initializing...');
-        initDashboardButton();
-        initDashboard();
-        // ... rest of your existing initialization code ...
+        updateAudioResults(state.audio);
+        updateBehaviorResults(state.behavior);
+        updateContentResults(state.content);
+        updateTextResults(state.text);
+        updateUsageResults(state.usage);
+        updateVideoResults(state.video);
     });
 });
-
-// Function to be executed in the content script context
-function takeScreenshot() {
-    return new Promise((resolve) => {
-        html2canvas(document.documentElement, {
-            logging: false,
-            useCORS: true,
-            allowTaint: true,
-            foreignObjectRendering: true,
-            scrollX: 0,
-            scrollY: 0,
-            windowWidth: window.innerWidth,
-            windowHeight: window.innerHeight,
-            backgroundColor: '#ffffff',
-            scale: 1
-        }).then(canvas => {
-            resolve(canvas.toDataURL('image/png'));
-        }).catch(error => {
-            console.error('Error taking screenshot:', error);
-            resolve(null);
-        });
-    });
-}
 

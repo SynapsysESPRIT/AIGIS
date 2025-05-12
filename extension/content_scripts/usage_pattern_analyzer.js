@@ -23,7 +23,7 @@ function calculatePatternMetrics() {
 // Function to determine status
 function determineStatus(metrics) {
     console.log('Checking status with metrics:', metrics);
-    
+
     // If either doomscrolling or violence is above threshold, status is bad
     if (metrics.doomscrollRate >= DOOMSCROLL_THRESHOLD || metrics.violenceRate >= VIOLENCE_THRESHOLD) {
         console.log('Status: bad (doomscroll:', metrics.doomscrollRate, 'violence:', metrics.violenceRate, ')');
@@ -36,7 +36,7 @@ function determineStatus(metrics) {
 // Function to update pattern
 function updatePattern(type) {
     console.log('Updating pattern for:', type);
-    
+
     if (type === 'doomscroll') {
         currentPattern.doomscrollCount++;
         console.log('New doomscroll count:', currentPattern.doomscrollCount);
@@ -44,30 +44,30 @@ function updatePattern(type) {
         currentPattern.violenceCount++;
         console.log('New violence count:', currentPattern.violenceCount);
     }
-    
+
     // Calculate current metrics
     const metrics = calculatePatternMetrics();
     const status = determineStatus(metrics);
-    
+
     const pattern = {
         ...metrics,
         status,
         type: 'current'
     };
-    
+
     console.log('Pattern updated:', pattern);
-    
+
     // Update storage and trigger UI update
-    chrome.storage.local.set({ 
+    chrome.storage.local.set({
         currentPattern: pattern
     }, () => {
         try {
             chrome.runtime.sendMessage({
-                type: 'pattern_update',
-                data: pattern
+                type: 'usagePatternResult',
+                result: pattern
             });
         } catch (error) {
-            console.log('Error sending pattern update:', error);
+            console.log('Error sending usage pattern update:', error);
         }
     });
 }
@@ -76,35 +76,40 @@ function updatePattern(type) {
 setInterval(() => {
     const metrics = calculatePatternMetrics();
     const status = determineStatus(metrics);
-    
+
     const pattern = {
         ...metrics,
         status,
         type: 'periodic'
     };
-    
+
     // Store the pattern
-    chrome.storage.local.set({ 
+    chrome.storage.local.set({
         currentPattern: pattern
     });
-    
+    // Send pattern reset to popup
+    chrome.runtime.sendMessage({
+        type: 'usagePatternResult',
+        result: pattern
+    });
+
     // Reset current pattern
     currentPattern = {
         doomscrollCount: 0,
         violenceCount: 0,
         startTime: Date.now()
     };
-    
+
     console.log('Pattern reset:', pattern);
 }, ANALYSIS_INTERVAL);
 
 // Listen for events
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('Usage analyzer received message:', message);
-    
+
     if (message.type === 'behavior_warning') {
         console.log('Processing behavior warning:', message.data);
-        if (message.data.type === 'rapid_scrolling' || 
+        if (message.data.type === 'rapid_scrolling' ||
             message.data.type === 'reel_binge' ||
             message.data.type === 'passive_consumption') {
             updatePattern('doomscroll');

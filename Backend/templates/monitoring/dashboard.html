@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parent Dashboard - AIGIS</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100">
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-bold">AIGIS Parent Dashboard</h1>
+                </div>
+                <div class="flex items-center">
+                    <button id="addChildBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        Add Child
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for child in children %}
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">{{ child.name }}'s Activity</h2>
+                <div class="space-y-4">
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500">Usage Pattern</h3>
+                        <canvas id="usagePatternChart{{ child.id }}" class="mt-2"></canvas>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500">Recent Activities</h3>
+                        <div id="activityList{{ child.id }}" class="mt-2 space-y-2">
+                            <!-- Activity items will be inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- Detection Analytics Section -->
+                    <div class="mt-6">
+                        <h3 class="text-sm font-medium text-gray-500">Detection Analytics</h3>
+                        <div class="mt-2">
+                            <canvas id="detectionChart{{ child.id }}" class="mt-2"></canvas>
+                        </div>
+                        <div class="mt-4">
+                            <div class="flex flex-wrap items-center mb-2 gap-2">
+                                <label for="detectionCountSelect{{ child.id }}" class="text-sm text-gray-600">Show latest</label>
+                                <select id="detectionCountSelect{{ child.id }}" class="border rounded px-2 py-1 text-sm">
+                                    <option value="10" selected>10</option>
+                                    <option value="20">20</option>
+                                    <option value="50">50</option>
+                                    <option value="all">All</option>
+                                </select>
+                                <span class="text-sm text-gray-600">detections</span>
+                                <label for="detectionTimeFilter{{ child.id }}" class="ml-4 text-sm text-gray-600">Time:</label>
+                                <select id="detectionTimeFilter{{ child.id }}" class="border rounded px-2 py-1 text-sm">
+                                    <option value="10">Last 10 min</option>
+                                    <option value="30">Last 30 min</option>
+                                    <option value="60">Last 1 hour</option>
+                                    <option value="custom">Custom</option>
+                                </select>
+                                <input type="datetime-local" id="detectionTimeStart{{ child.id }}" class="border rounded px-2 py-1 text-sm hidden" />
+                                <span class="text-sm text-gray-600 hidden" id="toLabel{{ child.id }}">to</span>
+                                <input type="datetime-local" id="detectionTimeEnd{{ child.id }}" class="border rounded px-2 py-1 text-sm hidden" />
+                            </div>
+                            <div id="detectionList{{ child.id }}" class="mt-2 space-y-2">
+                                <!-- Detection items will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+
+    <!-- Add Child Modal -->
+    <div id="addChildModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg font-medium leading-6 text-gray-900">Add New Child</h3>
+                <form id="addChildForm" class="mt-4 space-y-4">
+                    {% csrf_token %}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Name</label>
+                        <input type="text" name="name" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Age</label>
+                        <input type="number" name="age" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="closeModal()"
+                            class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                            Add Child
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Modal functions
+        function openModal() {
+            document.getElementById('addChildModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('addChildModal').classList.add('hidden');
+        }
+
+        document.getElementById('addChildBtn').addEventListener('click', openModal);
+
+        // Add Child Form Handler
+        document.getElementById('addChildForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {
+                name: formData.get('name'),
+                age: parseInt(formData.get('age'))
+            };
+
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            try {
+                const response = await fetch('/monitoring/add-child/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.error('Error adding child:', error);
+            }
+        });
+
+        // Activity Charts
+        {% for child in children %}
+        fetchUsagePatternData({{ child.id }});
+        {% endfor %}
+
+        async function fetchUsagePatternData(childId) {
+            try {
+                const response = await fetch(`/monitoring/usage-pattern/?child_id=${childId}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                if (data.error) {
+                    console.error('Error in usage pattern data:', data.error);
+                    return;
+                }
+                updateUsagePatternChart(childId, data.patterns);
+            } catch (error) {
+                console.error('Error fetching usage pattern data:', error);
+                const container = document.getElementById(`usagePatternChart${childId}`);
+                if (container) {
+                    container.innerHTML = `
+                        <div class="p-2 bg-red-50 text-red-700 rounded">
+                            Error loading usage pattern data. Please try again later.
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        function get5MinInterval(date) {
+            const d = new Date(date);
+            d.setSeconds(0, 0);
+            const minutes = d.getMinutes();
+            d.setMinutes(minutes - (minutes % 5));
+            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function updateUsagePatternChart(childId, patterns) {
+            const ctx = document.getElementById(`usagePatternChart${childId}`).getContext('2d');
+            // Destroy existing chart if it exists
+            if (chartInstances[`usage_${childId}`]) {
+                chartInstances[`usage_${childId}`].destroy();
+            }
+            if (!patterns || patterns.length === 0) return;
+
+            // Group by 5-min interval
+            const intervalMap = {};
+            patterns.forEach(p => {
+                const interval = get5MinInterval(p.timestamp);
+                if (!intervalMap[interval]) intervalMap[interval] = [];
+                intervalMap[interval].push(p);
+            });
+            const sortedIntervals = Object.keys(intervalMap).sort();
+            const durations = sortedIntervals.map(interval => {
+                // Use average engagement duration for the interval
+                const arr = intervalMap[interval];
+                return arr.reduce((sum, p) => sum + (p.engagementDuration / 1000), 0) / arr.length;
+            });
+            const behaviors = sortedIntervals.map(interval => {
+                // Use the most frequent behavior in the interval
+                const arr = intervalMap[interval];
+                const freq = {};
+                arr.forEach(p => { freq[p.behavior] = (freq[p.behavior] || 0) + 1; });
+                return Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
+            });
+            const behaviorColors = {
+                focused: '#10B981', // green
+                distracted: '#F59E0B', // yellow
+                restless: '#6366F1', // indigo
+                binge: '#EF4444', // red
+                normal: '#3B82F6', // blue
+                default: '#6B7280' // gray
+            };
+            const pointColors = behaviors.map(b => behaviorColors[b] || behaviorColors.default);
+
+            chartInstances[`usage_${childId}`] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sortedIntervals,
+                    datasets: [{
+                        label: 'Engagement Duration (s)',
+                        data: durations,
+                        borderColor: '#3B82F6',
+                        backgroundColor: '#3B82F633',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 9,
+                        pointHoverRadius: 13,
+                        pointBackgroundColor: pointColors,
+                        pointBorderColor: pointColors,
+                        borderWidth: 3,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const idx = context.dataIndex;
+                                    return `Duration: ${durations[idx].toFixed(0)}s | Behavior: ${behaviors[idx].charAt(0).toUpperCase() + behaviors[idx].slice(1)}`;
+                                }
+                            }
+                        },
+                        // Custom legend for behavior patterns
+                        customLegend: true
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time (5-min intervals)'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Engagement Duration (seconds)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Add a custom legend for behavior patterns
+            const legendId = `usagePatternLegend${childId}`;
+            let legendDiv = document.getElementById(legendId);
+            if (!legendDiv) {
+                legendDiv = document.createElement('div');
+                legendDiv.id = legendId;
+                legendDiv.className = 'flex flex-wrap gap-3 mt-2 mb-2';
+                ctx.canvas.parentNode.insertBefore(legendDiv, ctx.canvas.nextSibling);
+            }
+            legendDiv.innerHTML = Object.entries(behaviorColors).filter(([k]) => k !== 'default').map(([behavior, color]) =>
+                `<span class="flex items-center gap-1"><span style="display:inline-block;width:16px;height:16px;background:${color};border-radius:50%;border:1.5px solid #888;"></span>${behavior.charAt(0).toUpperCase() + behavior.slice(1)}</span>`
+            ).join('');
+        }
+
+        function updateActivityList(childId, activities) {
+            const container = document.getElementById(`activityList${childId}`);
+            container.innerHTML = activities.slice(0, 5).map(activity => `
+                <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div>
+                        <p class="text-sm font-medium">${activity.type}</p>
+                        <p class="text-xs text-gray-500">${new Date(activity.timestamp).toLocaleString()}</p>
+                    </div>
+                    <span class="px-2 py-1 text-xs rounded-full ${getRiskLevelColor(activity.risk_level)}">
+                        Risk: ${activity.risk_level}
+                    </span>
+                </div>
+            `).join('');
+        }
+
+        function getRiskLevelColor(level) {
+            const colors = {
+                0: 'bg-green-100 text-green-800',
+                1: 'bg-green-100 text-green-800',
+                2: 'bg-yellow-100 text-yellow-800',
+                3: 'bg-orange-100 text-orange-800',
+                4: 'bg-red-100 text-red-800',
+                5: 'bg-red-200 text-red-900'
+            };
+            return colors[level] || colors[0];
+        }
+
+        // Detection Analytics
+        {% for child in children %}
+        fetchDetectionData({{ child.id }});
+        {% endfor %}
+
+        // Store chart instances
+        const chartInstances = {};
+
+        function get2MinInterval(date) {
+            // Returns a string label for the 2-minute interval of the given date
+            const d = new Date(date);
+            d.setSeconds(0, 0);
+            const minutes = d.getMinutes();
+            d.setMinutes(minutes - (minutes % 2));
+            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function updateDetectionChart(childId, stats, recent) {
+            const ctx = document.getElementById(`detectionChart${childId}`).getContext('2d');
+            // Destroy existing chart if it exists
+            if (chartInstances[childId]) {
+                chartInstances[childId].destroy();
+            }
+
+            // Prepare data for 2-minute interval chart, grouped by detection type
+            const positiveDetections = (recent || []).filter(d => d.risk_level > 0);
+            const types = ['violence', 'brainrot', 'deepfake'];
+            const typeColors = {
+                violence: '#EF4444', // red
+                brainrot: '#3B82F6', // blue
+                deepfake: '#8B5CF6'  // purple
+            };
+
+            // Group detections by 2-minute interval and type, averaging confidence
+            const intervalTypeConfidences = {};
+            const allIntervals = new Set();
+            positiveDetections.forEach(d => {
+                const interval = get2MinInterval(d.timestamp);
+                allIntervals.add(interval);
+                if (!intervalTypeConfidences[interval]) intervalTypeConfidences[interval] = {};
+                if (!intervalTypeConfidences[interval][d.subtype]) intervalTypeConfidences[interval][d.subtype] = [];
+                intervalTypeConfidences[interval][d.subtype].push(d.confidence || 0);
+            });
+            const sortedIntervals = Array.from(allIntervals).sort();
+
+            // For each type, build a dataset with average confidence per interval
+            const datasets = types.map(type => {
+                return {
+                    label: type.charAt(0).toUpperCase() + type.slice(1),
+                    data: sortedIntervals.map(interval => {
+                        const arr = intervalTypeConfidences[interval]?.[type] || [];
+                        if (arr.length === 0) return null;
+                        return arr.reduce((a, b) => a + b, 0) / arr.length;
+                    }),
+                    borderColor: typeColors[type],
+                    backgroundColor: typeColors[type] + '33', // 20% opacity for area fill
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    borderWidth: 2,
+                    spanGaps: true
+                };
+            });
+
+            chartInstances[childId] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sortedIntervals,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    stacked: false,
+                    plugins: {
+                        legend: {
+                            display: true
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.parsed.y == null) return `${context.dataset.label}: No data`;
+                                    return `${context.dataset.label}: ${(context.parsed.y * 100).toFixed(1)}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time (2-min intervals)'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            title: {
+                                display: true,
+                                text: 'Average Confidence'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return (value * 100).toFixed(0) + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateDetectionList(childId, detections) {
+            const container = document.getElementById(`detectionList${childId}`);
+            const countSelect = document.getElementById(`detectionCountSelect${childId}`);
+            const timeSelect = document.getElementById(`detectionTimeFilter{{ child.id }}`);
+            const timeStart = document.getElementById(`detectionTimeStart{{ child.id }}`);
+            const timeEnd = document.getElementById(`detectionTimeEnd{{ child.id }}`);
+            const toLabel = document.getElementById(`toLabel{{ child.id }}`);
+
+            // Time filter
+            let filtered = detections;
+            if (timeSelect) {
+                const now = new Date();
+                if (timeSelect.value === '10') {
+                    filtered = detections.filter(d => (now - new Date(d.timestamp)) / 60000 <= 10);
+                } else if (timeSelect.value === '30') {
+                    filtered = detections.filter(d => (now - new Date(d.timestamp)) / 60000 <= 30);
+                } else if (timeSelect.value === '60') {
+                    filtered = detections.filter(d => (now - new Date(d.timestamp)) / 60000 <= 60);
+                } else if (timeSelect.value === 'custom' && timeStart && timeEnd && timeStart.value && timeEnd.value) {
+                    const start = new Date(timeStart.value);
+                    const end = new Date(timeEnd.value);
+                    filtered = detections.filter(d => {
+                        const t = new Date(d.timestamp);
+                        return t >= start && t <= end;
+                    });
+                }
+            }
+
+            // Count filter
+            let count = 10;
+            if (countSelect) {
+                if (countSelect.value === 'all') {
+                    count = filtered.length;
+                } else {
+                    count = parseInt(countSelect.value, 10) || 10;
+                }
+            }
+            const toShow = filtered.slice(0, count);
+            container.innerHTML = toShow.map(detection => {
+                // Format the result data for display
+                let resultDisplay = '';
+                let confidenceDisplay = '';
+                let riskDisplay = '';
+
+                if (detection.type === 'video') {
+                    const subtype = detection.subtype || 'unknown';
+                    const result = detection.result;
+                    if (result) {
+                        const isDetected = result[`is_${subtype}`] || false;
+                        const confidence = result.confidence || 0;
+                        resultDisplay = `${subtype.charAt(0).toUpperCase() + subtype.slice(1)}: ${isDetected ? 'Detected' : 'Not Detected'}`;
+                        confidenceDisplay = `Confidence: ${(confidence * 100).toFixed(1)}%`;
+                        riskDisplay = `Risk Level: ${detection.risk_level}`;
+                    }
+                } else {
+                    resultDisplay = typeof detection.result === 'object' 
+                        ? Object.entries(detection.result)
+                            .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+                            .join('<br>')
+                        : detection.result;
+                    if (detection.confidence) {
+                        confidenceDisplay = `Confidence: ${(detection.confidence * 100).toFixed(1)}%`;
+                    }
+                    riskDisplay = `Risk Level: ${detection.risk_level}`;
+                }
+
+                return `
+                    <div class="flex items-center justify-between p-2 bg-gray-50 rounded mb-2">
+                        <div class="flex-1">
+                            <p class="text-sm font-medium">${detection.type}${detection.subtype ? ` - ${detection.subtype}` : ''}</p>
+                            <p class="text-xs text-gray-500">${new Date(detection.timestamp).toLocaleString()}</p>
+                            <div class="text-xs text-gray-600 mt-1">
+                                ${resultDisplay}
+                            </div>
+                        </div>
+                        <div class="text-right ml-4">
+                            <span class="px-2 py-1 text-xs rounded-full ${getRiskLevelColor(detection.risk_level)}">
+                                ${riskDisplay}
+                            </span>
+                            ${confidenceDisplay ? `
+                                <p class="text-xs text-gray-500 mt-1">
+                                    ${confidenceDisplay}
+                                </p>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Add event listeners to update the list when dropdowns or custom range change
+        function setupDetectionCountDropdown(childId, detections) {
+            const countSelect = document.getElementById(`detectionCountSelect${childId}`);
+            const timeSelect = document.getElementById(`detectionTimeFilter{{ child.id }}`);
+            const timeStart = document.getElementById(`detectionTimeStart{{ child.id }}`);
+            const timeEnd = document.getElementById(`detectionTimeEnd{{ child.id }}`);
+            const toLabel = document.getElementById(`toLabel{{ child.id }}`);
+            if (countSelect) {
+                countSelect.addEventListener('change', () => updateDetectionList(childId, detections));
+            }
+            if (timeSelect) {
+                timeSelect.addEventListener('change', () => {
+                    // Show/hide custom range pickers
+                    if (timeSelect.value === 'custom') {
+                        if (timeStart) timeStart.classList.remove('hidden');
+                        if (timeEnd) timeEnd.classList.remove('hidden');
+                        if (toLabel) toLabel.classList.remove('hidden');
+                    } else {
+                        if (timeStart) timeStart.classList.add('hidden');
+                        if (timeEnd) timeEnd.classList.add('hidden');
+                        if (toLabel) toLabel.classList.add('hidden');
+                    }
+                    updateDetectionList(childId, detections);
+                });
+            }
+            if (timeStart) {
+                timeStart.addEventListener('change', () => updateDetectionList(childId, detections));
+            }
+            if (timeEnd) {
+                timeEnd.addEventListener('change', () => updateDetectionList(childId, detections));
+            }
+        }
+
+        // Update fetchDetectionData to call setupDetectionCountDropdown after updating the list
+        async function fetchDetectionData(childId) {
+            try {
+                const response = await fetch(`/monitoring/detection-data/?child_id=${childId}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                if (data.error) {
+                    console.error('Error in detection data:', data.error);
+                    return;
+                }
+                updateDetectionChart(childId, data.stats, data.recent);
+                updateDetectionList(childId, data.recent);
+                setupDetectionCountDropdown(childId, data.recent);
+            } catch (error) {
+                console.error('Error fetching detection data:', error);
+                // Show error in the UI
+                const container = document.getElementById(`detectionList${childId}`);
+                if (container) {
+                    container.innerHTML = `
+                        <div class="p-2 bg-red-50 text-red-700 rounded">
+                            Error loading detection data. Please try again later.
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // Clean up charts when the page is unloaded
+        window.addEventListener('beforeunload', () => {
+            Object.values(chartInstances).forEach(chart => {
+                if (chart) {
+                    chart.destroy();
+                }
+            });
+        });
+
+        // Update the fetch interval to be more frequent
+        setInterval(() => {
+            {% for child in children %}
+            fetchDetectionData({{ child.id }});
+            {% endfor %}
+        }, 5000); // Poll every 5 seconds instead of 30
+    </script>
+</body>
+</html> 

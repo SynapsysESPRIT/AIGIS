@@ -7,7 +7,8 @@ const VIOLENCE_COOLDOWN = 15000; // ms
 const DEEPFAKE_COOLDOWN = 20000; // ms
 const ANALYSIS_INTERVAL = 2000; // ms (how often to try analyzing a frame)
 const VIOLENCE_THRESHOLD = 0.5;
-const FLASH_FRAME_INTERVAL = 50; // ms (how often to check for flashing lights)
+const FLASH_FRAME_INTERVAL = 5000; // ms (check for flashing lights every 5 seconds)
+const FLASH_COOLDOWN = 5000; // ms (minimum time between flash detection requests)
 
 // --- STATE ---
 const videoStates = new WeakMap(); // video => { lastXRequestTime, XRequestInFlight }
@@ -26,8 +27,44 @@ function ensureBadgeCSS() {
             .fused-badge-violence { top: 10px; right: 10px; background: rgba(255,140,0,0.85); }
             .fused-badge-deepfake { bottom: 10px; left: 10px; background: rgba(128,0,255,0.85); }
             .fused-badge-flash { bottom: 10px; right: 10px; background: rgba(255,0,255,0.85); }
+            .fused-video-blur { filter: blur(20px); transition: filter 0.3s ease-in-out; }
+            .fused-video-red-filter { 
+                position: relative;
+            }
+            .fused-video-red-filter::after {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(255, 0, 0, 0.5);
+                mix-blend-mode: multiply;
+                pointer-events: none;
+                transition: opacity 0.3s ease-in-out;
+            }
         `;
-        document.head.appendChild(style);
+
+        // Add style to document.documentElement instead of document.head
+        document.documentElement.appendChild(style);
+    }
+}
+
+function applyBlur(video, shouldBlur) {
+    if (!video.parentElement) return;
+    if (shouldBlur) {
+        video.classList.add('fused-video-blur');
+    } else {
+        video.classList.remove('fused-video-blur');
+    }
+}
+
+function applyRedFilter(video, shouldApply) {
+    if (!video.parentElement) return;
+    if (shouldApply) {
+        video.classList.add('fused-video-red-filter');
+    } else {
+        video.classList.remove('fused-video-red-filter');
     }
 }
 
@@ -92,18 +129,42 @@ function fetchViolence(frame) {
         .catch(() => ({ is_violence: false, confidence: 0 }));
 }
 
-function fetchDeepfake(frame, video) {
-    return fetch("http://127.0.0.1:8000/video/deepfake/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ video: frame, url: video.src || window.location.href }),
-    })
-        .then(res => res.json())
-        .then(data => ({
+async function fetchDeepfake(frame, video) {
+    try {
+        // Get the auth token from storage
+        const token = await new Promise((resolve) => {
+            chrome.storage.local.get(['authToken'], (result) => {
+                resolve(result.authToken);
+            });
+        });
+
+        if (!token) {
+            console.error('No authentication token found for deepfake detection');
+            return { is_deepfake: false, confidence: 0 };
+        }
+
+        const response = await fetch("http://127.0.0.1:8000/video/deepfake/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Token ${token}`
+            },
+            body: JSON.stringify({ video: frame, url: video.src || window.location.href }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return {
             is_deepfake: data.is_deepfake,
             confidence: data.confidence
-        }))
-        .catch(() => ({ is_deepfake: false, confidence: 0 }));
+        };
+    } catch (error) {
+        console.error("Error in deepfake detection:", error);
+        return { is_deepfake: false, confidence: 0 };
+    }
 }
 
 async function fetchFlashDetection(frame) {
@@ -130,7 +191,6 @@ async function fetchFlashDetection(frame) {
             is_flash_trigger: data.is_epilepsy_trigger || false,
             result: data.result || 'Unknown',
             confidence: data.confidence || 0,
-            brightness_change: data.brightness_change || 0,
             status: data.status || 'error',
             frame_count: data.frame_count || 0
         };
@@ -141,7 +201,6 @@ async function fetchFlashDetection(frame) {
                 is_flash_trigger: false,
                 result: 'Server connection error. Please ensure the server is running.',
                 confidence: 0,
-                brightness_change: 0,
                 status: 'error',
                 frame_count: 0
             };
@@ -150,7 +209,6 @@ async function fetchFlashDetection(frame) {
             is_flash_trigger: false,
             result: `Error: ${error.message}`,
             confidence: 0,
-            brightness_change: 0,
             status: 'error',
             frame_count: 0
         };
@@ -162,7 +220,8 @@ function startVideoAnalysis(video) {
     video.dataset.fusedChecked = "true";
     let analysisIntervalId;
     let flashIntervalId;
-    
+    let lastFlashCheck = 0;
+
     function analysisLoop() {
         if (!video.paused && !video.ended && isTabActiveAndVisible()) {
             const frame = captureFrame(video);
@@ -178,18 +237,28 @@ function startVideoAnalysis(video) {
                         type: 'VIDEO_ANALYSIS_RESULTS',
                         data: { brainrot, violence, deepfake }
                     });
-                    
-                    // Update badges
+
+                    // Send detections to monitoring backend
+                    sendDetectionToMonitoring('brainrot', brainrot);
+                    sendDetectionToMonitoring('violence', violence);
+                    sendDetectionToMonitoring('deepfake', deepfake);
+
+                    // Update badges and effects
                     if (brainrot.is_brainrot) {
                         overlayBadge(video, 'brainrot', '⚠️ Brainrot Detected');
                     } else {
                         removeBadge(video, 'brainrot');
                     }
+
+                    // Only apply blur for violence detection
                     if (violence.is_violence && violence.confidence > VIOLENCE_THRESHOLD) {
                         overlayBadge(video, 'violence', '🔫 Violence Detected');
+                        applyBlur(video, true);
                     } else {
                         removeBadge(video, 'violence');
+                        applyBlur(video, false);
                     }
+
                     if (deepfake.is_deepfake) {
                         overlayBadge(video, 'deepfake', `🤖 Deepfake (${Math.round(deepfake.confidence * 100)}%)`);
                     } else {
@@ -199,38 +268,43 @@ function startVideoAnalysis(video) {
             }
         }
     }
-    
+
     function flashDetectionLoop() {
         if (!video.paused && !video.ended && isTabActiveAndVisible()) {
-            const frame = captureFrame(video);
-            if (frame) {
-                fetchFlashDetection(frame).then(flashData => {
-                    if (flashData.status === 'collecting') {
-                        overlayBadge(video, 'flash', `⚡ ${flashData.result}`);
-                    } else if (flashData.status === 'error') {
-                        overlayBadge(video, 'flash', `⚠️ ${flashData.result}`);
-                    } else if (flashData.is_flash_trigger) {
-                        overlayBadge(video, 'flash', `⚡ Flashing Lights Detected`);
-                    } else {
-                        removeBadge(video, 'flash');
-                    }
-                    
-                    // Send results
-                    chrome.runtime.sendMessage({
-                        type: 'VIDEO_ANALYSIS_RESULTS',
-                        data: { flash: flashData }
+            const now = Date.now();
+            // Only check for flashes if enough time has passed since last check
+            if (now - lastFlashCheck >= FLASH_COOLDOWN) {
+                const frame = captureFrame(video);
+                if (frame) {
+                    lastFlashCheck = now;
+                    fetchFlashDetection(frame).then(flashData => {
+                        // Only show badge for final results or errors
+                        if (flashData.is_flash_trigger) {
+                            overlayBadge(video, 'flash', `⚡ Flashing Lights Detected`);
+                            applyRedFilter(video, true);
+                        } else if (flashData.status === 'error') {
+                            overlayBadge(video, 'flash', `⚠️ ${flashData.result}`);
+                        } else {
+                            removeBadge(video, 'flash');
+                            applyRedFilter(video, false);
+                        }
+
+                        // Send results
+                        chrome.runtime.sendMessage({
+                            type: 'VIDEO_ANALYSIS_RESULTS',
+                            data: { flash: flashData }
+                        });
                     });
-                });
+                }
             }
         }
     }
-    
+
     video.addEventListener("playing", () => {
         analysisIntervalId = setInterval(analysisLoop, ANALYSIS_INTERVAL);
         flashIntervalId = setInterval(flashDetectionLoop, FLASH_FRAME_INTERVAL);
-        overlayBadge(video, 'flash', '⚡ Monitoring for flashing lights');
     });
-    
+
     video.addEventListener("pause", () => {
         clearInterval(analysisIntervalId);
         clearInterval(flashIntervalId);
@@ -238,8 +312,10 @@ function startVideoAnalysis(video) {
         removeBadge(video, 'violence');
         removeBadge(video, 'deepfake');
         removeBadge(video, 'flash');
+        applyBlur(video, false);
+        applyRedFilter(video, false);
     });
-    
+
     video.addEventListener("ended", () => {
         clearInterval(analysisIntervalId);
         clearInterval(flashIntervalId);
@@ -247,6 +323,8 @@ function startVideoAnalysis(video) {
         removeBadge(video, 'violence');
         removeBadge(video, 'deepfake');
         removeBadge(video, 'flash');
+        applyBlur(video, false);
+        applyRedFilter(video, false);
     });
 }
 
@@ -254,8 +332,83 @@ function scanVideos() {
     document.querySelectorAll("video").forEach(startVideoAnalysis);
 }
 
-// --- INIT ---
+// Initial setup
 ensureBadgeCSS();
 scanVideos();
-const observer = new MutationObserver(() => scanVideos());
-observer.observe(document.body, { childList: true, subtree: true }); 
+
+// Set up MutationObserver to detect new videos
+function setupObserver() {
+    if (document.documentElement) {
+        const observer = new MutationObserver(() => scanVideos());
+        observer.observe(document.documentElement, {
+            childList: true,
+            subtree: true
+        });
+    } else {
+        // If documentElement isn't ready, try again in a moment
+        setTimeout(setupObserver, 100);
+    }
+}
+
+setupObserver();
+
+async function sendDetectionToServer(detection) {
+    try {
+        // Get the auth token from storage
+        const token = await new Promise((resolve) => {
+            chrome.storage.local.get(['authToken'], (result) => {
+                resolve(result.authToken);
+            });
+        });
+
+        if (!token) {
+            console.error('No authentication token found');
+            return;
+        }
+
+        const response = await fetch('http://127.0.0.1:8000/video/deepfake/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Token ${token}`
+            },
+            body: JSON.stringify(detection)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('Detection sent successfully:', result);
+    } catch (error) {
+        console.error('Error sending detection:', error);
+    }
+}
+
+// Helper to send detection to monitoring backend
+async function sendDetectionToMonitoring(type, result) {
+    try {
+        // Get the active child ID from storage (async)
+        let activeChildId = 1; // fallback
+        if (chrome && chrome.storage && chrome.storage.local) {
+            const storage = await new Promise(resolve => chrome.storage.local.get('activeChildId', resolve));
+            if (storage.activeChildId) activeChildId = storage.activeChildId;
+        }
+        const payload = {
+            child_id: activeChildId,
+            type: 'video',
+            result: { [type]: result }
+        };
+        console.log('[video_script.js] Sending detection to /monitoring/log-detection/:', payload);
+        const response = await fetch('http://127.0.0.1:8000/monitoring/log-detection/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        console.log('[video_script.js] Monitoring log-detection response:', data);
+    } catch (err) {
+        console.error('[video_script.js] Error sending detection to monitoring:', err);
+    }
+} 
