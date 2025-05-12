@@ -11,9 +11,10 @@
 
 ### 🌐 Live Demo & Resources
 
-- 🚀 [Live Website](https://safewebguardian.tech) *(Replace with actual link)*
-- 📝 [Devpost Project](https://devpost.com/software/safeweb-guardian) *(Replace with actual link)*
-- 🎥 [Demo Video](https://youtu.be/safeweb-demo) *(Replace with actual link)*
+- 🚀 [Live Website](SOON) 
+
+![Enregistrement 2025-05-12 055942 (1)](https://github.com/user-attachments/assets/d489db02-54e1-41cd-8c43-eb5a96b7a5ee)
+
 
 ---
 
