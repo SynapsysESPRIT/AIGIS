@@ -1,6 +1,6 @@
 <h1 align="center">🔱 Aigis 🔱</h1>
 
-**Aigis is an AI-powered browser extension and dashboard designed to protect children and families from online dangers. It leverages advanced machine learning and deep learning models for real-time detection of harmful content, deepfakes, and risky interactions. This project was developed as part of the AI Customer Business Logic (CBL) Project at ESPRIT University.**
+**Aigis is an AI-powered browser extension and dashboard designed to protect children and families from online dangers. It leverages advanced machine learning and deep learning models for real-time detection of harmful content, deepfakes, and risky interactions. This project was developed as part of the AI Challenge based Learning (CBL) Project at ESPRIT University.**
 
 ![Aigis__1_-removebg-preview](https://github.com/user-attachments/assets/b0cd6a8a-d9ee-4752-949b-59c8058e4c2a)
 
