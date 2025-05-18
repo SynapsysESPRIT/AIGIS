@@ -396,6 +396,18 @@
         </div>
       </div>
 
+      <!-- Chat Logs Section -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <i class="fas fa-comments me-2"></i>Chat Logs
+        </div>
+        <div class="card-body">
+          <div id="chatLogsList" style="max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 0.95em;">
+            <!-- Chat logs will be populated here -->
+          </div>
+        </div>
+      </div>
+
       <!-- Text Analysis Section -->
       <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -1030,6 +1042,9 @@
         // Update detections list
         updateDetectionsList(detectionData.recent);
         
+        // Update chat logs
+        updateChatLogsList(detectionData.recent);
+        
       } catch (error) {
         console.error('Error updating dashboard:', error);
         alert('Failed to update dashboard: ' + error.message);
@@ -1173,6 +1188,23 @@
       } catch (error) {
         console.error('Error opening chart modal:', error);
       }
+    }
+
+    // Update chat logs
+    function updateChatLogsList(detections) {
+      const container = document.getElementById('chatLogsList');
+      if (!container) return;
+      const chatlogs = (detections || []).filter(d => d.type === 'chatlog');
+      if (chatlogs.length === 0) {
+        container.innerHTML = '<div class="text-muted">No chat logs found.</div>';
+        return;
+      }
+      container.innerHTML = chatlogs.map(log => `
+        <div class="mb-4 p-2 bg-light rounded border">
+          <div class="text-secondary mb-1">${formatDate(log.timestamp)} | <span class="text-primary">${log.result.url || ''}</span></div>
+          <pre class="whitespace-pre-wrap">${log.result.chatlog}</pre>
+        </div>
+      `).join('');
     }
   </script>
 </body>

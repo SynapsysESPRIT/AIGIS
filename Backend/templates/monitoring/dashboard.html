@@ -72,6 +72,13 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Chat Log Section -->
+                    <div class="mt-6">
+                        <h3 class="text-sm font-medium text-gray-500">Chat Logs</h3>
+                        <div id="chatLogList{{ child.id }}" class="mt-2 max-h-64 overflow-y-auto bg-gray-50 rounded p-2 text-xs font-mono">
+                            <!-- Chat logs will be inserted here -->
+                        </div>
+                    </div>
                 </div>
             </div>
             {% endfor %}
@@ -602,6 +609,35 @@
             fetchDetectionData({{ child.id }});
             {% endfor %}
         }, 5000); // Poll every 5 seconds instead of 30
+
+        // Add JS to fetch and render chat logs for each child
+        {% for child in children %}
+        fetchChatLogs({{ child.id }});
+        {% endfor %}
+        async function fetchChatLogs(childId) {
+            try {
+                const response = await fetch(`/monitoring/detection-data/?child_id=${childId}`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                if (data.error) return;
+                const chatlogs = (data.recent || []).filter(d => d.type === 'chatlog');
+                const container = document.getElementById(`chatLogList${childId}`);
+                if (!container) return;
+                if (chatlogs.length === 0) {
+                    container.innerHTML = '<div class="text-gray-400">No chat logs found.</div>';
+                    return;
+                }
+                container.innerHTML = chatlogs.map(log => `
+                    <div class="mb-4 p-2 bg-white rounded shadow">
+                        <div class="text-gray-500 mb-1">${new Date(log.timestamp).toLocaleString()} | <span class="text-blue-600">${log.result.url || ''}</span></div>
+                        <pre class="whitespace-pre-wrap">${log.result.chatlog}</pre>
+                    </div>
+                `).join('');
+            } catch (error) {
+                const container = document.getElementById(`chatLogList${childId}`);
+                if (container) container.innerHTML = '<div class="text-red-500">Error loading chat logs.</div>';
+            }
+        }
     </script>
 </body>
 </html> 

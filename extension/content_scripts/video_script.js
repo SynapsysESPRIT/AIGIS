@@ -277,7 +277,7 @@ function startVideoAnalysis(video) {
                 const frame = captureFrame(video);
                 if (frame) {
                     lastFlashCheck = now;
-                    fetchFlashDetection(frame).then(flashData => {
+                    fetchFlashDetection(frame).then(async flashData => {
                         // Only show badge for final results or errors
                         if (flashData.is_flash_trigger) {
                             overlayBadge(video, 'flash', `⚡ Flashing Lights Detected`);
@@ -289,11 +289,44 @@ function startVideoAnalysis(video) {
                             applyRedFilter(video, false);
                         }
 
-                        // Send results
+                        // Send results to popup
                         chrome.runtime.sendMessage({
                             type: 'VIDEO_ANALYSIS_RESULTS',
                             data: { flash: flashData }
                         });
+
+                        // POST flash detection to monitoring backend
+                        try {
+                            const storage = await new Promise(resolve => chrome.storage.local.get(['activeChildId'], resolve));
+                            const activeChildId = storage.activeChildId || 1;
+                            
+                            const payload = {
+                                child_id: activeChildId,
+                                type: 'flash',
+                                result: {
+                                    is_epilepsy_trigger: flashData.is_flash_trigger,
+                                    result: flashData.result,
+                                    confidence: flashData.confidence,
+                                    frame_count: flashData.frame_count,
+                                    status: flashData.status
+                                }
+                            };
+
+                            const response = await fetch('http://127.0.0.1:8000/monitoring/log-detection/', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+
+                            const data = await response.json();
+                            console.log('[Flash] Detection logged:', data);
+                        } catch (error) {
+                            console.error('[Flash] Error logging detection:', error);
+                        }
                     });
                 }
             }
@@ -389,17 +422,25 @@ async function sendDetectionToServer(detection) {
 // Helper to send detection to monitoring backend
 async function sendDetectionToMonitoring(type, result) {
     try {
-        // Get the active child ID from storage (async)
         let activeChildId = 1; // fallback
         if (chrome && chrome.storage && chrome.storage.local) {
             const storage = await new Promise(resolve => chrome.storage.local.get('activeChildId', resolve));
             if (storage.activeChildId) activeChildId = storage.activeChildId;
         }
-        const payload = {
-            child_id: activeChildId,
-            type: 'video',
-            result: { [type]: result }
-        };
+        let payload;
+        if (type === 'flash') {
+            payload = {
+                child_id: activeChildId,
+                type: 'flash',
+                result: result
+            };
+        } else {
+            payload = {
+                child_id: activeChildId,
+                type: 'video',
+                result: { [type]: result }
+            };
+        }
         console.log('[video_script.js] Sending detection to /monitoring/log-detection/:', payload);
         const response = await fetch('http://127.0.0.1:8000/monitoring/log-detection/', {
             method: 'POST',

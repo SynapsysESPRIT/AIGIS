@@ -157,6 +157,75 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
 
+    // Energy Management
+    let currentEnergy = 85; // Starting energy level
+
+    function updateEnergy(pattern) {
+        const healthBarFill = document.querySelector('.health-bar-fill');
+        const healthBarContainer = document.querySelector('.health-bar-container');
+        const energyMessage = document.querySelector('.energy-message');
+        
+        // Remove previous classes
+        healthBarFill.classList.remove('energy-gain', 'energy-loss', 'high', 'medium', 'low');
+        healthBarContainer.classList.remove('energy-gain', 'energy-loss');
+        
+        // Calculate energy change based on pattern
+        let energyChange = 0;
+        let message = '';
+        
+        switch(pattern.toLowerCase()) {
+            case 'focused':
+                energyChange = 15;
+                message = '🌟 Super Focused! +15 Energy';
+                break;
+            case 'normal':
+                energyChange = 5;
+                message = '✨ Good Job! +5 Energy';
+                break;
+            case 'distracted':
+                energyChange = -10;
+                message = '😴 Getting Distracted... -10 Energy';
+                break;
+            case 'restless':
+                energyChange = -20;
+                message = '⚠️ Too Restless! -20 Energy';
+                break;
+        }
+        
+        // Update energy level
+        currentEnergy = Math.max(0, Math.min(100, currentEnergy + energyChange));
+        
+        // Update health bar
+        healthBarFill.style.width = `${currentEnergy}%`;
+        
+        // Add appropriate classes
+        if (energyChange > 0) {
+            healthBarFill.classList.add('energy-gain');
+            healthBarContainer.classList.add('energy-gain');
+        } else if (energyChange < 0) {
+            healthBarFill.classList.add('energy-loss');
+            healthBarContainer.classList.add('energy-loss');
+        }
+        
+        // Update color based on energy level
+        if (currentEnergy >= 70) {
+            healthBarFill.classList.add('high');
+        } else if (currentEnergy >= 30) {
+            healthBarFill.classList.add('medium');
+        } else {
+            healthBarFill.classList.add('low');
+        }
+        
+        // Show message
+        energyMessage.textContent = message;
+        energyMessage.classList.add('show');
+        
+        // Remove message after animation
+        setTimeout(() => {
+            energyMessage.classList.remove('show');
+        }, 1000);
+    }
+
     // Function to update pattern status
     async function updatePatternStatus() {
         const patternDiv = document.getElementById('pattern-status');
@@ -254,6 +323,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // Update companion sprite
                 companionSprite.src = companion.sprites[pattern.sprite];
+
+                // Update energy based on pattern
+                updateEnergy(pattern.behavior);
             });
         } catch (error) {
             console.error('Error updating pattern status:', error);
@@ -716,6 +788,41 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>`;
         }
         nudityResults.innerHTML = html;
+    }
+
+    // Function to take screenshot of the current page
+    function takeScreenshot() {
+        return new Promise((resolve, reject) => {
+            // First get the current tab
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error('Failed to get current tab: ' + chrome.runtime.lastError.message));
+                    return;
+                }
+
+                if (!tabs || tabs.length === 0) {
+                    reject(new Error('No active tab found'));
+                    return;
+                }
+
+                const currentTab = tabs[0];
+
+                // Then capture the visible tab
+                chrome.tabs.captureVisibleTab(currentTab.windowId, { format: 'png' }, (dataUrl) => {
+                    if (chrome.runtime.lastError) {
+                        reject(new Error('Failed to capture screenshot: ' + chrome.runtime.lastError.message));
+                        return;
+                    }
+
+                    if (!dataUrl) {
+                        reject(new Error('No screenshot data received'));
+                        return;
+                    }
+
+                    resolve(dataUrl);
+                });
+            });
+        });
     }
 
     processButton.addEventListener('click', async () => {

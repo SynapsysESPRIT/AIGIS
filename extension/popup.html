@@ -1,6 +1,4 @@
-<!DOCTYPE html>
-<html>
-<head>
+<html><head>
     <meta charset="UTF-8">
     <title>AIGIS - Content Detection</title>
     <link rel="stylesheet" href="popup.css">
@@ -281,21 +279,30 @@
 </head>
 <body>
     <div class="header">
-        <div class="logo">🤖</div>
-        <div class="title">AIGIS Companion</div>
+        <div class="logo">🔱</div>
+        <div class="title">Aigis</div>
+    </div>
+
+    <!-- Add Health Bar -->
+    <div class="health-bar-container">
+        <div class="health-bar-label">Aigisso's Energy</div>
+        <div class="health-bar">
+            <div class="health-bar-fill" style="width: 85%;"></div>
+        </div>
+        <div class="energy-message"></div>
     </div>
 
     <!-- Companion Display -->
     <div class="companion-section">
         <div class="companion-display">
-            <img id="companion-sprite" src="sprites/owl/happy.gif" alt="AIGIS Companion">
+            <img id="companion-sprite" src="sprites/cat/happy.gif" alt="AIGIS Companion">
         </div>
         <div id="pattern-status" class="pattern-status">
-            <div class="result good">
-                <span class="result-icon">🌟</span>
-                <span>Starting to track your patterns...</span>
-            </div>
-        </div>
+                    <div class="result good">
+                        <span class="result-icon">🌟</span>
+                        <span>You're focused and engaged! 🌟</span>
+                    </div>
+                </div>
     </div>
 
     <div class="status active">
@@ -304,105 +311,18 @@
 
     <div class="detection-section">
         <div class="section-title">📝 Text Classification</div>
-        <div id="text-results">
-            <!-- Results will be populated here -->
-        </div>
-        <div id="text-summary" class="summary">
-            <!-- Summary will be populated here -->
-        </div>
-        <div id="gemini-summary-section" style="margin-top: 15px; display: none;">
+        <div id="text-results"><div class="result safe"><span class="result-icon">⏳</span><span>Scanning page for text content...</span></div></div>
+        <div id="text-summary" class="summary"></div>
+        <div id="gemini-summary-section" style="margin-top: 15px; display: block;">
             <div class="section-title" style="font-size: 1.1em; color: #333;">Overall Chat Analysis</div>
-            <div id="gemini-results" class="summary" style="background-color: #f0f4f8; padding: 12px; border-radius: 6px; border: 1px solid #d1d9e0;">
-                <!-- Gemini classification results will be populated here -->
-                <div class="result safe"><span class="result-icon">ℹ️</span><span>Awaiting overall chat analysis.</span></div>
-            </div>
+            <div id="gemini-results" class="summary" style="background-color: #f0f4f8; padding: 12px; border-radius: 6px; border: 1px solid #d1d9e0;"><div class="result safe"><span class="result-icon">⏳</span><span>Awaiting overall chat analysis...</span></div></div>
         </div>
     </div>
 
-    <div class="detection-section">
-        <div class="section-title">🎥 Video Analysis</div>
-        <div id="video-results">
-            <div class="video-analysis-group">
-                <div class="sub-section-title">🧠 Brainrot Detection</div>
-                <div id="brainrot-results">
-                    <div class="result safe">
-                        <span class="result-icon">✅</span>
-                        <span>No brainrot content detected</span>
-                    </div>
-                </div>
-                <div class="brainrot-stats">
-                    <div class="stat-item">
-                        <span class="stat-label">Last Check:</span>
-                        <span class="stat-value" id="last-check-time">-</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Confidence:</span>
-                        <span class="stat-value" id="brainrot-confidence">-</span>
-                    </div>
-                </div>
-            </div>
+    
 
-            <div class="video-analysis-group">
-                <div class="sub-section-title">🔫 Violence Detection</div>
-                <div id="violence-results">
-                    <div class="result safe">
-                        <span class="result-icon">✅</span>
-                        <span>No violence detected</span>
-                    </div>
-                </div>
-                <div class="violence-stats">
-                    <div class="stat-item">
-                        <span class="stat-label">Last Check:</span>
-                        <span class="stat-value" id="violence-last-check">-</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Confidence:</span>
-                        <span class="stat-value" id="violence-confidence">-</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="video-analysis-group">
-                <div class="sub-section-title">🤖 Deepfake Detection</div>
-                <div id="deepfake-results">
-                    <div class="result safe">
-                        <span class="result-icon">✅</span>
-                        <span>No deepfake detected</span>
-                    </div>
-                </div>
-                <div class="deepfake-stats">
-                    <div class="stat-item">
-                        <span class="stat-label">Last Check:</span>
-                        <span class="stat-value" id="deepfake-last-check">-</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Confidence:</span>
-                        <span class="stat-value" id="deepfake-confidence">-</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="detection-section">
-        <div class="section-title">🔍 Nudity Detection</div>
-        <div id="nudity-results">
-            <div class="result safe">
-                <span class="result-icon">✅</span>
-                <span>No nudity detected</span>
-            </div>
-        </div>
-    </div>
-    <div class="detection-section">
-        <div class="section-title">🎭 Deepfake Detection</div>
-        <div class="toggle-container">
-            <span class="toggle-label">Enable Deepfake Detection</span>
-            <label class="switch">
-                <input type="checkbox" id="deepfakeToggle">
-                <span class="slider"></span>
-            </label>
-        </div>
-    </div>
+    
+    
 
     <div class="detection-section">
         <div class="section-title">⚠️ Behavior Monitoring</div>
@@ -425,34 +345,34 @@
         <div class="pattern-metrics">
             <div class="stat-item">
                 <span class="stat-label">Scroll Frequency:</span>
-                <span id="scroll-frequency" class="stat-value">-</span>
+                <span id="scroll-frequency" class="stat-value">0.0/min</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Average Scroll Speed:</span>
-                <span id="scroll-speed" class="stat-value">-</span>
+                <span id="scroll-speed" class="stat-value">0 px/s</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Engagement Duration:</span>
-                <span id="engagement-duration" class="stat-value">-</span>
+                <span id="engagement-duration" class="stat-value">60s</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Behavior Pattern:</span>
-                <span id="behavior-pattern" class="stat-value">-</span>
+                <span id="behavior-pattern" class="stat-value">Focused</span>
             </div>
         </div>
     </div>
 
     <div class="controls">
         <div class="toggle">
-            <input type="checkbox" id="text-toggle" checked>
+            <input type="checkbox" id="text-toggle" checked="">
             <label for="text-toggle">Enable text classification</label>
         </div>
         <div class="toggle">
-            <input type="checkbox" id="violence-toggle" checked>
+            <input type="checkbox" id="violence-toggle" checked="">
             <label for="violence-toggle">Enable violence detection</label>
         </div>
         <div class="toggle">
-            <input type="checkbox" id="nudity-toggle" checked>
+            <input type="checkbox" id="nudity-toggle" checked="">
             <label for="nudity-toggle">Enable nudity detection</label>
         </div>
         <button id="scan-page">Scan Current Page</button>
@@ -506,5 +426,6 @@
     </div>
 
     <script src="popup.js"></script>
-</body>
-</html>
+
+
+</body></html>
