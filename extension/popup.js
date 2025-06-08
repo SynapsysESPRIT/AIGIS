@@ -164,16 +164,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const healthBarFill = document.querySelector('.health-bar-fill');
         const healthBarContainer = document.querySelector('.health-bar-container');
         const energyMessage = document.querySelector('.energy-message');
-        
+
         // Remove previous classes
         healthBarFill.classList.remove('energy-gain', 'energy-loss', 'high', 'medium', 'low');
         healthBarContainer.classList.remove('energy-gain', 'energy-loss');
-        
+
         // Calculate energy change based on pattern
         let energyChange = 0;
         let message = '';
-        
-        switch(pattern.toLowerCase()) {
+
+        switch (pattern.toLowerCase()) {
             case 'focused':
                 energyChange = 15;
                 message = '🌟 Super Focused! +15 Energy';
@@ -191,13 +191,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 message = '⚠️ Too Restless! -20 Energy';
                 break;
         }
-        
+
         // Update energy level
         currentEnergy = Math.max(0, Math.min(100, currentEnergy + energyChange));
-        
+
         // Update health bar
         healthBarFill.style.width = `${currentEnergy}%`;
-        
+
         // Add appropriate classes
         if (energyChange > 0) {
             healthBarFill.classList.add('energy-gain');
@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', function () {
             healthBarFill.classList.add('energy-loss');
             healthBarContainer.classList.add('energy-loss');
         }
-        
+
         // Update color based on energy level
         if (currentEnergy >= 70) {
             healthBarFill.classList.add('high');
@@ -215,11 +215,11 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             healthBarFill.classList.add('low');
         }
-        
+
         // Show message
         energyMessage.textContent = message;
         energyMessage.classList.add('show');
-        
+
         // Remove message after animation
         setTimeout(() => {
             energyMessage.classList.remove('show');
@@ -833,14 +833,11 @@ document.addEventListener('DOMContentLoaded', function () {
             // Get the active tab
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-            // Execute the screenshot script
-            const results = await chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                function: takeScreenshot
-            });
+            // Send message to content script to take screenshot using html2canvas
+            const results = await chrome.tabs.sendMessage(tab.id, { action: 'takeScreenshot' });
 
-            if (results && results[0] && results[0].result) {
-                currentScreenshot = results[0].result;
+            if (results && results.screenshot) {
+                currentScreenshot = results.screenshot;
                 downloadButton.style.display = 'block';
                 statusDiv.textContent = 'Screenshot captured successfully!';
                 statusDiv.className = 'success';
@@ -1093,7 +1090,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.log('Processing text classification results:', message.results);
                 state.text = message.results;
                 displayTextResults(message.results);
-                sendDetectionToBackend(state.text);
+                // Format the data properly before sending to backend
+                sendDetectionToBackend({
+                    type: 'text',
+                    result: {
+                        roberta_classification: message.results.roberta_classification,
+                        gemini_classification: message.results.gemini_classification
+                    }
+                });
                 break;
             case 'usagePatternResult':
                 console.log('Processing usage pattern result:', message.result);

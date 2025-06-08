@@ -1,0 +1,93 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parent Recommendations - AIGIS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{% static 'css/dashboard.css' %}" rel="stylesheet">
+    <style>
+      .ai-recommend-card {
+        background: linear-gradient(120deg, #F5E1FD 0%, #B399D4 100%);
+        border-radius: 18px;
+        box-shadow: 0 4px 24px rgba(41,98,255,0.10);
+        padding: 2rem 2rem 1.5rem 2rem;
+        margin-top: 2rem;
+        margin-bottom: 2rem;
+        border: none;
+        position: relative;
+      }
+      .ai-recommend-card h4 {
+        color: #2962ff;
+        font-weight: 700;
+        margin-bottom: 1.2rem;
+        letter-spacing: 0.5px;
+      }
+      .ai-recommend-card .ai-icon {
+        font-size: 2.2rem;
+        color: #B399D4;
+        position: absolute;
+        top: 1.2rem;
+        right: 1.5rem;
+        opacity: 0.25;
+      }
+      .ai-recommend-list {
+        font-size: 1.15rem;
+        color: #3A3042;
+        margin-top: 1rem;
+        margin-bottom: 0;
+        padding-left: 1.2rem;
+      }
+      .ai-recommend-list li {
+        margin-bottom: 0.7rem;
+        line-height: 1.7;
+      }
+      .ai-recommend-text {
+        font-size: 1.15rem;
+        color: #3A3042;
+        margin-top: 1rem;
+        white-space: pre-line;
+      }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container py-5">
+        <div class="mb-4">
+            <a href="/monitoring/?child_id={{ child_id }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+            </a>
+        </div>
+        <div class="card shadow-lg mb-4">
+            <div class="card-header bg-primary text-white">
+                <i class="fas fa-magic me-2"></i>Gemini Recommendations for Parents
+            </div>
+            <div class="card-body">
+                {% if error %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endif %}
+                <h5 class="mb-3">Monitoring Data Summary</h5>
+                <pre class="bg-light p-3 rounded border" style="max-height: 250px; overflow-y: auto;">{{ summary }}</pre>
+                <hr>
+                <div class="ai-recommend-card">
+                  <span class="ai-icon"><i class="fas fa-magic"></i></span>
+                  <h4>AI Recommendations</h4>
+                  {% if recommendation_bubbles %}
+                    {% for rec in recommendation_bubbles %}
+                      <div class="recommend-bubble mb-3 d-flex align-items-start" style="background: #fff; border-radius: 14px; box-shadow: 0 2px 8px rgba(41,98,255,0.07); padding: 1.1rem 1.3rem; font-size: 1.08rem; color: #3A3042; border-left: 5px solid #B399D4;">
+                        <span class="me-2" style="color: #B399D4; font-size: 1.2rem;"><i class="fas fa-lightbulb"></i></span>
+                        <span style="flex:1;">{{ rec|linebreaksbr }}</span>
+                      </div>
+                    {% endfor %}
+                  {% elif gemini_error %}
+                    <div class="alert alert-warning">{{ gemini_error }}</div>
+                  {% else %}
+                    <div class="text-muted">No recommendations available.</div>
+                  {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

@@ -2,12 +2,8 @@ console.log("📝 Text extraction content script loaded!");
 
 // Configuration
 const GEMINI_API_KEY = 'AIzaSyAnjxxUiTFoL7RIBokjJ_uIh8DKdLXsdG0';
-const DJANGO_API_URL = 'http://127.0.0.1:8000/text/classify_text/';
-
-// Global rate limiting
-let lastTextRequestTime = 0;
-let textRequestInFlight = false;
-const TEXT_REQUEST_COOLDOWN = 20000; // 20 seconds
+const LOGGING_API_URL = 'http://127.0.0.1:8000/monitoring/log-chat/'; // For logging conversations
+const CLASSIFICATION_API_URL = 'http://127.0.0.1:8000/text/classify_text/'; // For text classification
 
 function isTabActiveAndVisible() {
     return !document.hidden && document.visibilityState === 'visible';
@@ -39,21 +35,51 @@ function preprocessCSS() {
 async function takeScreenshot() {
     let styleElement = null;
     try {
+        // Scroll to the top of the page to ensure full capture
+        window.scrollTo(0, 0);
+
+        // Wait for document to be ready
+        if (document.readyState !== 'complete') {
+            console.log('Document not ready, waiting...');
+            await new Promise(resolve => {
+                window.addEventListener('load', resolve);
+            });
+        }
+
+        // Check if html2canvas is available
+        if (typeof html2canvas === 'undefined') {
+            console.error('html2canvas not found. Checking script loading...');
+            const scripts = document.getElementsByTagName('script');
+            console.log('Loaded scripts:', Array.from(scripts).map(s => s.src));
+            throw new Error('html2canvas library not loaded');
+        }
+
+        // Check if document.body exists
+        if (!document.body) {
+            console.error('Document body not found. Document state:', {
+                readyState: document.readyState,
+                hasDocumentElement: !!document.documentElement,
+                hasHead: !!document.head
+            });
+            throw new Error('Document body not found');
+        }
+
         // Preprocess CSS to handle modern color functions
         styleElement = preprocessCSS();
 
         const options = {
-            logging: false,
+            logging: true,
             useCORS: true,
             allowTaint: true,
             foreignObjectRendering: true,
             scrollX: 0,
             scrollY: 0,
-            windowWidth: window.innerWidth,
-            windowHeight: window.innerHeight,
+            width: document.documentElement.scrollWidth, // Full page width
+            height: document.documentElement.scrollHeight, // Full page height
             backgroundColor: '#ffffff',
             scale: 1,
             onclone: (clonedDoc) => {
+                console.log('Cloning document for screenshot...');
                 // Remove any problematic elements or styles
                 const elements = clonedDoc.querySelectorAll('*');
                 elements.forEach(el => {
@@ -68,12 +94,43 @@ async function takeScreenshot() {
             }
         };
 
-        // Only capture the visible viewport
-        const viewport = document.documentElement;
-        const canvas = await html2canvas(viewport, options);
-        return canvas.toDataURL('image/png');
+        console.log('Taking screenshot with options:', options);
+        console.log('Document dimensions:', {
+            bodyWidth: document.body.scrollWidth,
+            bodyHeight: document.body.scrollHeight,
+            windowWidth: window.innerWidth,
+            windowHeight: window.innerHeight
+        });
+
+        // Try document.body first, fall back to documentElement if needed
+        let canvas;
+        try {
+            canvas = await html2canvas(document.body, options);
+        } catch (bodyError) {
+            console.warn('Failed to capture body, trying documentElement:', bodyError);
+            canvas = await html2canvas(document.documentElement, options);
+        }
+
+        if (!canvas) {
+            throw new Error('Failed to create canvas');
+        }
+
+        const dataUrl = canvas.toDataURL('image/png');
+        if (!dataUrl) {
+            throw new Error('Failed to convert canvas to data URL');
+        }
+
+        return dataUrl;
     } catch (error) {
         console.error('Error taking screenshot:', error);
+        // Log additional debugging information
+        console.log('Document state:', {
+            readyState: document.readyState,
+            hasBody: !!document.body,
+            hasHtml2Canvas: typeof html2canvas !== 'undefined',
+            url: window.location.href,
+            timestamp: new Date().toISOString()
+        });
         return null;
     } finally {
         // Clean up the style element
@@ -141,46 +198,60 @@ Extract all visible text while maintaining this structure.`
         if (result?.candidates?.[0]?.content?.parts?.[0]?.text) {
             const extractedText = result.candidates[0].content.parts[0].text;
             console.log('Extracted text:', extractedText);
-            return extractedText;
+
+            // Split the extracted text into individual conversations
+            const conversations = extractedText.split(/--- Conversation \d+ ---/).filter(Boolean).map(conv => conv.trim());
+            return conversations;
         }
 
         console.warn('No text found in Gemini response:', result);
-        return null;
+        return [];
     } catch (error) {
         console.error('Error analyzing image with Gemini:', error);
-        return null;
+        return [];
     }
 }
 
 // Function to send text to Django API
 async function sendTextToAPI(text) {
     try {
-        if (textRequestInFlight) return null;
-        if (!isTabActiveAndVisible()) return null;
-        const now = Date.now();
-        if (now - lastTextRequestTime < TEXT_REQUEST_COOLDOWN) return null;
-        lastTextRequestTime = now;
-        textRequestInFlight = true;
-        console.log('Sending text to API:', text.substring(0, 100) + '...'); // Log first 100 chars
+        if (!isTabActiveAndVisible()) {
+            console.log('sendTextToAPI (Classification): Tab not active or visible. Aborting.');
+            return null;
+        }
 
-        const response = await fetch(DJANGO_API_URL, {
+        // Ensure text is a string
+        if (Array.isArray(text)) {
+            console.warn('sendTextToAPI (Classification): Received an array, joining with newlines. This function expects a single text string.');
+            text = text.join('\n\n');
+        }
+
+        console.log('Sending text for classification:', text.substring(0, 100) + '...');
+
+        const data = await new Promise((resolve) => {
+            chrome.storage.local.get('activeChildId', (result) => {
+                resolve(result);
+            });
+        });
+        const child_id = data.activeChildId || 1;
+
+        const response = await fetch(CLASSIFICATION_API_URL, { // Use CLASSIFICATION_API_URL
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ text: text })
+            body: JSON.stringify({ text: text, child_id: child_id })
         });
 
         const responseData = await response.json();
-        textRequestInFlight = false;
 
         if (!response.ok) {
-            throw new Error(`Django API error: ${response.status} ${response.statusText}\n${JSON.stringify(responseData)}`);
+            throw new Error(`Classification API error: ${response.status} ${response.statusText}\n${JSON.stringify(responseData)}`);
         }
 
         console.log('Text classification results:', responseData);
 
-        // Send results to popup
+        // Send results to popup (if needed for classification)
         chrome.runtime.sendMessage({
             type: 'textClassificationResults',
             results: responseData
@@ -188,9 +259,56 @@ async function sendTextToAPI(text) {
 
         return responseData;
     } catch (error) {
-        textRequestInFlight = false;
-        console.error('Error sending text to API:', error);
+        console.error('Error sending text to Classification API:', error);
         return null;
+    }
+}
+
+// Function to send conversations to Django API for logging
+async function sendConversationsToAPI(conversations) {
+    try {
+        if (!isTabActiveAndVisible()) {
+            console.log('sendConversationsToAPI (Logging): Tab not active or visible. Aborting.');
+            return;
+        }
+
+        console.log('Sending conversations for logging:', conversations);
+
+        const data = await new Promise((resolve) => {
+            chrome.storage.local.get(['activeChildId'], (result) => {
+                resolve(result);
+            });
+        });
+        const child_id = data.activeChildId || 1;
+        console.log(`sendConversationsToAPI (Logging): Using child_id: ${child_id}`);
+
+        if (!conversations || conversations.length === 0) {
+            console.log('sendConversationsToAPI (Logging): No conversations to send.');
+            return;
+        }
+
+        const response = await fetch(LOGGING_API_URL, { // Use LOGGING_API_URL directly
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ conversations: conversations, child_id: child_id })
+        });
+
+        if (!response.ok) {
+            let errorData;
+            try {
+                errorData = await response.json();
+            } catch (e) {
+                errorData = { error: 'Failed to parse error response from server.' };
+            }
+            console.error('Error sending conversations to Logging API:', response.status, errorData);
+        } else {
+            const responseData = await response.json();
+            console.log('Conversations logged successfully:', responseData);
+        }
+    } catch (error) {
+        console.error('Error sending conversations to Logging API:', error);
     }
 }
 
@@ -199,66 +317,57 @@ async function processPageText() {
     try {
         const screenshot = await takeScreenshot();
         if (!screenshot) {
-            console.warn('Screenshot capture failed, skipping this iteration');
+            console.warn('Screenshot failed, aborting text processing.');
             return;
         }
 
-        const text = await analyzeImageWithGemini(screenshot);
-        if (text) {
-            await sendTextToAPI(text);
+        const conversationsArray = await analyzeImageWithGemini(screenshot); // analyzeImageWithGemini returns string[]
+
+        if (conversationsArray && conversationsArray.length > 0) {
+            console.log('Extracted conversations by Gemini:', conversationsArray);
+
+            // 1. Log all conversations
+            //    We make a copy of the array in case sendConversationsToAPI modifies it, though it shouldn't.
+            await sendConversationsToAPI([...conversationsArray]);
+
+            // 2. Send each conversation for classification
+            console.log('\nStarting classification for each conversation:');
+            for (const conversation of conversationsArray) {
+                if (conversation && conversation.trim().length > 0) {
+                    // console.log(`Sending for classification: "${conversation.substring(0, 100)}..."`); // Already logged in sendTextToAPI
+                    await sendTextToAPI(conversation.trim()); // sendTextToAPI handles its own console logging of results
+                }
+            }
+            console.log('\nFinished classification process.');
+
+        } else {
+            console.warn('No conversations extracted by Gemini to process.');
         }
-    } catch (error) {
+    } catch (error) { // This catch corresponds to the try block above
         console.error('Error processing page text:', error);
     }
 }
 
-// Export the processPageText function to be called from other scripts
-window.processPageText = processPageText;
-
-// Test function to verify API key
-async function testGeminiAPI() {
-    try {
-        console.log('Testing Gemini API...');
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: "Hello, this is a test message."
-                    }]
-                }]
+// Listen for messages from other parts of the extension (e.g., popup)
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'processText') {
+        console.log('[text_content_script.js] Received processText request');
+        processPageText()
+            .then(results => {
+                // While processPageText itself doesn't directly return a combined result for the popup,
+                // individual classification results are sent via chrome.runtime.sendMessage in sendTextToAPI.
+                // This sendResponse is more of an acknowledgment.
+                sendResponse({ status: "Text processing initiated. Results will be sent separately." });
             })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            console.error('API Test Failed:', {
-                status: response.status,
-                statusText: response.statusText,
-                error: errorData
+            .catch(error => {
+                console.error('[text_content_script.js] Error during processPageText execution:', error);
+                sendResponse({ status: "Error initiating text processing.", error: error.message });
             });
-            return false;
-        }
-
-        const result = await response.json();
-        console.log('API Test Successful:', result);
-        return true;
-    } catch (error) {
-        console.error('API Test Error:', error);
-        return false;
+        return true; // Indicates that the response is sent asynchronously
     }
-}
+    // Optional: Handle other actions if needed
+});
 
-// Add test function to window object so it can be called from console
-window.testGeminiAPI = testGeminiAPI;
-
-// Listen for messages from popup
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'processText') {
-        processPageText().then(sendResponse);
-        return true; // Will respond asynchronously
-    }
-}); 
+// Export the processPageText function to be called from other scripts
+// (Note: Direct export/import between content scripts and other extension pages like popups isn't standard.
+// Message passing is the primary way, as implemented above.)

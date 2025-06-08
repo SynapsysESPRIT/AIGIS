@@ -62,4 +62,15 @@ class DetectionLog(models.Model):
     details = models.JSONField(default=dict)
 
     class Meta:
-        ordering = ['-timestamp'] 
+        ordering = ['-timestamp']
+
+class ChatLog(models.Model):
+    child = models.ForeignKey(ChildProfile, on_delete=models.CASCADE, related_name='chatlogs')
+    text = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"ChatLog for {self.child.name} at {self.timestamp}"

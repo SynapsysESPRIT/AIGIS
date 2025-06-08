@@ -11,4 +11,6 @@ urlpatterns = [
     path('log-detection/', views.log_detection, name='log_detection'),
     path('detection-data/', views.get_detection_data, name='get_detection_data'),
     path('usage-pattern/', views.get_usage_pattern_data, name='get_usage_pattern_data'),
-] 
+    path('log-chat/', views.log_chat, name='log_chat'),
+    path('recommendations/', views.recommendations_view, name='recommendations'),
+]

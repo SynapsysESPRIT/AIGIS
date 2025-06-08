@@ -180,8 +180,6 @@ async function sendNudityToAPI(imageData, img) {
                 }
             }
             if (img) overlayResultBadge(img, "NSFW", "red");
-        } else {
-            if (img) overlayResultBadge(img, "Safe", "green");
         }
         // Send to popup
         chrome.runtime.sendMessage({
@@ -194,9 +192,9 @@ async function sendNudityToAPI(imageData, img) {
         });
     } catch (err) {
         console.error("\u274C API error:", err);
-        if (img) {
-            overlayResultBadge(img, "Error", "orange");
-        }
+        // if (img) {
+        //     overlayResultBadge(img, "Error", "orange");
+        // }
     }
 }
 

@@ -3,7 +3,8 @@ import base64
 import io
 import numpy as np
 from PIL import Image as pil_image, UnidentifiedImageError
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 import onnxruntime
 import os
@@ -36,6 +37,7 @@ def preprocess_image(image_data):
         return None
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def classify_nudity(request):
     image_data = request.data.get('image')
     img = preprocess_image(image_data)

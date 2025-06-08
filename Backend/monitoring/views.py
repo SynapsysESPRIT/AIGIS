@@ -3,12 +3,15 @@ from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.contrib.auth.models import User
-from .models import ParentProfile, ChildProfile, ActivityLog, DetectionLog
+from .models import ParentProfile, ChildProfile, ActivityLog, DetectionLog, ChatLog
 from django.views.decorators.csrf import csrf_exempt
 import json
 from django.db.models import Count, Avg
 from datetime import datetime, timedelta
 from django.utils import timezone
+import requests
+import os
+import re
 
 @csrf_exempt
 def login_view(request):
@@ -55,10 +58,16 @@ def dashboard_view(request):
         else:
             print("No children found for user")  # Debug logging
         
+        # Fetch chatlogs for the first child if available
+        chatlogs = []
+        if child_id:
+            chatlogs = ChatLog.objects.filter(child_id=child_id).order_by('-timestamp')
+
         context = {
             'children': children,
             'child_id': child_id,
-            'has_children': children.exists()
+            'has_children': children.exists(),
+            'chatlogs': chatlogs  # Include chatlogs in the context
         }
         
         print(f"Rendering dashboard with context: {context}")  # Debug logging
@@ -220,6 +229,36 @@ def log_detection(request):
                     }
                 })
                 print(f"Processing flash detection: {flash_data}")
+            elif data['type'] == 'text':
+                # Handle text classification results
+                text_data = result_data
+                roberta_data = text_data.get('roberta_classification', {})
+                gemini_data = text_data.get('gemini_classification', {})
+                
+                # Calculate risk level based on RoBERTa results
+                risk_level = 0
+                if roberta_data.get('summary', {}).get('offensive_count', 0) > 0:
+                    risk_level = max(risk_level, 3)
+                if roberta_data.get('summary', {}).get('hate_count', 0) > 0:
+                    risk_level = max(risk_level, 4)
+                
+                # Increase risk level based on Gemini results
+                if gemini_data.get('blackmail', False) or gemini_data.get('potential_suicide', False):
+                    risk_level = max(risk_level, 5)
+                elif gemini_data.get('manipulative', False) or gemini_data.get('meeting_attempt', False):
+                    risk_level = max(risk_level, 4)
+                
+                detections.append({
+                    'type': 'text',
+                    'result': text_data,
+                    'confidence': 1.0,  # Text classification is always confident
+                    'risk_level': risk_level,
+                    'details': {
+                        'roberta_summary': roberta_data.get('summary', {}),
+                        'gemini_analysis': gemini_data
+                    }
+                })
+                print(f"Processing text classification: {text_data}")
             else:
                 # Handle other detection types
                 detections.append({
@@ -313,7 +352,7 @@ def get_detection_data(request):
                         'result': latest.result,
                         'confidence': latest.confidence,
                         'risk_level': latest.risk_level,
-                        'subtype': latest.details.get('subtype')
+                        'subtype': latest.details.get('subtype', 'text' if detection_type == 'text' else None)
                     }
             except Exception as e:
                 print(f"Error processing latest detection for type {detection_type}: {str(e)}")
@@ -333,10 +372,15 @@ def get_detection_data(request):
             except Exception as e:
                 print(f"Error processing detection {d.id}: {str(e)}")
         
+        # Find the latest text detection
+        latest_text_detection = recent_detections.filter(detection_type='text').first()
+        text_classification = latest_text_detection.result if latest_text_detection else None
+
         data = {
             'stats': list(detection_stats),
             'latest': latest_detections,
-            'recent': recent_data
+            'recent': recent_data,
+            'text_classification': text_classification
         }
         
         print(f"Successfully prepared detection data with {len(recent_data)} recent detections")
@@ -405,4 +449,127 @@ def get_usage_pattern_data(request):
         return JsonResponse({
             'error': 'Internal server error',
             'details': str(e)
-        }, status=500) 
+        }, status=500)
+
+@csrf_exempt
+def log_chat(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            child_id = data.get('child_id')
+            conversations = data.get('conversations', [])
+
+            print(f"Received data: {data}")  # Debug logging
+            print(f"Child ID: {child_id}, Conversations: {conversations}")  # Debug logging
+
+            if not child_id or not conversations:
+                return JsonResponse({'error': 'Child ID and conversations are required'}, status=400)
+
+            child = ChildProfile.objects.get(id=child_id)
+
+            for conversation in conversations:
+                ChatLog.objects.create(
+                    child=child,
+                    text=conversation
+                )
+
+            return JsonResponse({'status': 'success', 'message': 'Chat logs saved successfully'})
+        except ChildProfile.DoesNotExist:
+            return JsonResponse({'error': 'Child not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+@login_required
+def recommendations_view(request):
+    child_id = request.GET.get('child_id')
+    # If no child_id, try to select the child named 'anas' for this user
+    if not child_id:
+        try:
+            child = ChildProfile.objects.filter(parent=request.user, name__iexact='anas').first()
+            if child:
+                child_id = child.id
+            else:
+                return render(request, 'monitoring/recommendations.html', {'error': 'No child selected and no child named "anas" found.'})
+        except Exception as e:
+            return render(request, 'monitoring/recommendations.html', {'error': f'No child selected and error finding child: {e}'})
+
+    # Fetch detection data
+    detection_data = None
+    usage_data = None
+    try:
+        detection_response = requests.get(
+            request.build_absolute_uri(f'/monitoring/detection-data/?child_id={child_id}'),
+            cookies=request.COOKIES,
+            headers={"Cookie": request.META.get("HTTP_COOKIE", "")}
+        )
+        if detection_response.ok:
+            detection_data = detection_response.json()
+        usage_response = requests.get(
+            request.build_absolute_uri(f'/monitoring/usage-pattern/?child_id={child_id}'),
+            cookies=request.COOKIES,
+            headers={"Cookie": request.META.get("HTTP_COOKIE", "")}
+        )
+        if usage_response.ok:
+            usage_data = usage_response.json()
+    except Exception as e:
+        return render(request, 'monitoring/recommendations.html', {'error': f'Failed to fetch monitoring data: {e}'})
+
+    # Prepare summary for Gemini
+    summary = ""
+    if detection_data:
+        summary += "Detections Summary:\n"
+        for d in detection_data.get('recent', [])[:10]:
+            summary += f"- Type: {d.get('type')}, Risk: {d.get('risk_level')}, Confidence: {d.get('confidence')}, Details: {str(d.get('result'))[:100]}\n"
+        if detection_data.get('text_classification'):
+            summary += f"Text Analysis: {str(detection_data['text_classification'])[:300]}\n"
+    if usage_data:
+        summary += "Usage Pattern Summary:\n"
+        for p in usage_data.get('patterns', [])[:10]:
+            summary += f"- {p.get('timestamp')}: {p.get('behavior')} for {p.get('engagementDuration')}s\n"
+
+    # Use Gemini to generate recommendations
+    GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+    GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+    recommendations = None
+    gemini_error = None
+    if GEMINI_API_KEY:
+        prompt = (
+            "You are a digital parenting assistant. Based on the following monitoring data (detections, usage patterns, and text analysis), generate clear, actionable, and empathetic recommendations for the parent. "
+            "Focus on online safety, healthy device usage, and communication.\n\nMonitoring Data:\n" + summary +
+            "\nRecommendations (in bullet points):"
+        )
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}]
+        }
+        headers = {'Content-Type': 'application/json'}
+        full_url = f"{GEMINI_API_URL}?key={GEMINI_API_KEY}"
+        try:
+            response = requests.post(full_url, headers=headers, json=payload, timeout=30)
+            response.raise_for_status()
+            result = response.json()
+            if result.get("candidates") and result["candidates"][0].get("content") and result["candidates"][0]["content"].get("parts") and result["candidates"][0]["content"]["parts"][0].get("text"):
+                recommendations = result["candidates"][0]["content"]["parts"][0]["text"]
+            else:
+                gemini_error = "No recommendations found in Gemini response."
+        except Exception as e:
+            gemini_error = f"Gemini API error: {e}"
+    else:
+        gemini_error = "Gemini API key not configured."
+
+    # Prepare recommendation bubbles
+    recommendation_bubbles = []
+    if recommendations:
+        # Try to split on bullet points (lines starting with *)
+        bubbles = re.split(r'\n\s*\*', recommendations)
+        # Clean up and add back the '*' if it was removed
+        recommendation_bubbles = [b.strip() if b.startswith('*') else ('* ' + b.strip()) for b in bubbles if b.strip()]
+
+    return render(request, 'monitoring/recommendations.html', {
+        'recommendations': recommendations,
+        'recommendation_bubbles': recommendation_bubbles,
+        'gemini_error': gemini_error,
+        'summary': summary,
+        'child_id': child_id,
+    })
